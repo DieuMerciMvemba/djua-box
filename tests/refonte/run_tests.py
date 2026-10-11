@@ -13,7 +13,7 @@ from run_tests import compiler_environment
 environment = compiler_environment()
 compiler = shutil.which("cl.exe", path=environment.get("PATH"))
 sources = [HERE / "drivers_test.cpp", ROOT / "src/drivers/ina228.cpp",
-           ROOT / "src/drivers/ina3221.cpp"]
+           ROOT / "src/drivers/ina3221.cpp", ROOT / "src/drivers/pzem004t.cpp"]
 with tempfile.TemporaryDirectory(prefix="iot-v2-host-") as directory:
     binary = Path(directory) / "drivers_test.exe"
     command = [compiler, "/nologo", "/std:c++17", "/EHsc", "/W4", "/WX", "/utf-8",

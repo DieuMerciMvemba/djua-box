@@ -1,10 +1,13 @@
 #include "../../src/drivers/ina228.h"
 #include "../../src/drivers/ina3221.h"
+#include "../../src/drivers/pzem004t.h"
 #include "../../src/telemetry/energy_window.h"
 #include <cassert>
 #include <cstdio>
 #include <map>
 #include <utility>
+#include <deque>
+#include <vector>
 using namespace djua;
 
 struct Registers : I2cPort {
@@ -28,7 +31,60 @@ struct Registers : I2cPort {
     }
 };
 static bool near(double a, double b, double delta = .002) { return fabs(a - b) < delta; }
+struct SerialFake : ByteStream {
+    std::deque<uint8_t> rx;
+    std::vector<uint8_t> tx;
+    int available() override { return static_cast<int>(rx.size()); }
+    int read() override { if (rx.empty()) return -1; int c = rx.front(); rx.pop_front(); return c; }
+    bool write(const uint8_t* p, size_t n) override { tx.insert(tx.end(), p, p + n); return true; }
+    void response(bool corrupt = false, uint16_t current = 1200) {
+        const uint16_t registers[10] = {2300, current, 0, 2300, 0, 1000, 0, 500, 83, 0};
+        uint8_t bytes[25] = {0xf8, 4, 20};
+        for (unsigned i = 0; i < 10; ++i) {
+            bytes[3 + 2 * i] = static_cast<uint8_t>(registers[i] >> 8);
+            bytes[4 + 2 * i] = static_cast<uint8_t>(registers[i]);
+        }
+        const uint16_t crc = modbusCrc(bytes, 23);
+        bytes[23] = static_cast<uint8_t>(crc ^ (corrupt ? 1 : 0));
+        bytes[24] = static_cast<uint8_t>(crc >> 8);
+        for (auto byte : bytes) rx.push_back(byte);
+    }
+};
+static void pzemTests() {
+    SerialFake serial; Pzem004t meter(serial);
+    assert(meter.start(0) && !meter.start(1));
+    assert(serial.tx.size() == 8 && serial.tx[0] == 0xf8 && serial.tx[1] == 4);
+    assert(modbusCrc(serial.tx.data(), serial.tx.size()) == 0);
+    serial.response(); meter.update(30);
+    auto value = meter.reading(30);
+    assert(value.electric.valid && near(value.electric.power, 230));
+    assert(near(value.apparentVA, 276) && near(value.frequencyHz, 50));
+    assert(value.counterWh == 1000 && value.counterValid);
+    assert(!meter.reading(5031).electric.valid);
+    assert(meter.start(10000)); serial.response(true); meter.update(10030);
+    assert(meter.reading(10030).electric.fault == MeasureFault::Crc);
+    assert(meter.start(20000)); serial.response(false, 10001); meter.update(20030);
+    assert(!meter.reading(20030).electric.valid);
+    assert(meter.start(UINT32_MAX - 499)); meter.update(500);
+    assert(meter.reading(500).electric.fault == MeasureFault::Timeout);
+    assert(meter.start(1000));
+    serial.rx = {0xf8, 0x84, 2};
+    uint8_t exception[3] = {0xf8, 0x84, 2};
+    const uint16_t crc = modbusCrc(exception, 3);
+    serial.rx.push_back(static_cast<uint8_t>(crc)); serial.rx.push_back(static_cast<uint8_t>(crc >> 8));
+    meter.update(1001); assert(meter.reading(1001).electric.fault == MeasureFault::Protocol);
+    CounterWindow counter; counter.sample(0, 1000, true); counter.sample(10000, 1001, true);
+    assert(counter.complete(10000) && counter.wattHours() == 1);
+    counter.sample(20000, 0, true);
+    assert(!counter.complete(20000) && counter.fault() == MeasureFault::CounterReset);
+    counter.reset(20000, 0, true); counter.sample(30000, 1, false);
+    counter.sample(40000, 2, true); assert(!counter.complete(40000));
+    counter.reset(40000, 2, true); counter.sample(50000, 100, true);
+    assert(!counter.complete(50000) && counter.fault() == MeasureFault::Range);
+    puts("PASS PZEM: Modbus/CRC, six readings, 10 A limits, stale, timeout, exceptions, counter reset/gap/jump");
+}
 int main() {
+    pzemTests();
     Registers port; I2cBus bus(port);
     Ina228 battery(bus, {0x40, {.0025, 30, 32, 3, 1}});
     port.ina228(0x40);
