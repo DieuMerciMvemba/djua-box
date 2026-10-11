@@ -41,6 +41,7 @@ ElectricalReading Ina228::read(uint32_t now) {
     if (!pending_) return out;
     uint32_t diag = 0, calibration = 0, range = 0, shunt = 0, bus = 0, current = 0;
     if (!bus_.read(config_.address, 0x0b, diag)) out.fault = MeasureFault::Io;
+    else if (!(diag & 1)) out.fault = MeasureFault::Configuration; // MEMSTAT trim memory
     else if (diag & 0x200) out.fault = MeasureFault::Overflow;
     else if (!(diag & 2)) {
         out.fault = now - startedAt_ >= 1000 ? MeasureFault::Timeout : MeasureFault::NotReady;

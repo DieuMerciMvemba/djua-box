@@ -48,12 +48,8 @@ bool isPositionUsable(const GPSData& position)
         position.longitude >= -180.0 &&
         position.longitude <= 180.0;
 
-    // Dans le firmware DJUA, 0.0/0.0 represente une position indisponible.
-    const bool isZeroPosition =
-        position.latitude == 0.0 &&
-        position.longitude == 0.0;
-
-    return position.valid && coordinatesInRange && !isZeroPosition;
+    return coordinatesInRange && djua::precisionGeofenceUsable(position, GPS_MAX_AGE_MS,
+                                                              GEOFENCE_ENTER_RADIUS_M);
 }
 
 GeofenceResult makeBaseResult(const GPSData& position)

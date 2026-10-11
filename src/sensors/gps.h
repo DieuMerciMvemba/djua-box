@@ -2,17 +2,13 @@
 #define GPS_H
 
 #include <Arduino.h>
+#include "../location/location.h"
 
 // =====================================================
 // IOT BOX - DONNEES GPS
 // =====================================================
 
-struct GPSData
-{
-    double latitude;
-    double longitude;
-    bool valid;
-};
+using GPSData = djua::LocationFix;
 
 void initGPS();
 

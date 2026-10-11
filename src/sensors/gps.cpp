@@ -6,7 +6,7 @@
 #include "../config.h"
 
 // =====================================================
-// IOT BOX - NEO-6M
+// NEO-8M : NMEA/TinyGPSPlus, independent of modem and its GNSS.
 // =====================================================
 
 static TinyGPSPlus gps;
@@ -25,7 +25,7 @@ void initGPS()
         GPS_TX_PIN
     );
 
-    Serial.println("[GPS] NEO-6M initialise.");
+    Serial.println("[GPS] NEO-8M initialise (UART2 independant).");
     Serial.print("[GPS] RX ESP32 : GPIO ");
     Serial.println(GPS_RX_PIN);
 
@@ -70,6 +70,10 @@ GPSData readGPS()
 
     const bool locationValid = gps.location.isValid();
     const unsigned long locationAge = gps.location.age();
+    data.ageMs = locationAge;
+    data.source = djua::LocationSource::NeoGnss;
+    data.hdopKnown = gps.hdop.isValid() && gps.hdop.age() <= GPS_MAX_AGE_MS;
+    if (data.hdopKnown) data.hdop = gps.hdop.hdop();
 
     if (!locationValid)
     {
