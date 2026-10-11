@@ -1,5 +1,6 @@
 #pragma once
 #include "d2_codec.h"
+#include "d3_codec.h"
 
 namespace djua {
 enum class ReadResult { Missing, Ok, Error };
@@ -43,6 +44,7 @@ public:
     D2State state() const { return state_; }
     const D2Identity& identity() const { return identity_; }
     EnqueueResult enqueue(D2Frame frame, D2Error& codecError);
+    EnqueueResult enqueueV3(TelemetryV3 frame, D2Error& codecError);
     size_t count() const { return queue_.count; }
     const D2QueuedSms* at(size_t index) const;
     bool recordAttempt(size_t index);

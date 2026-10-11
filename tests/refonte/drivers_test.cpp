@@ -3,6 +3,9 @@
 #include "../../src/drivers/pzem004t.h"
 #include "../../src/communication/gsm.h"
 #include "../../src/location/location.h"
+#include "../../src/communication/d2_store.h"
+#include "../sms/host_crypto.h"
+#undef near // Windows legacy calling-convention macro, used only by host BCrypt.
 #include "../../src/telemetry/energy_window.h"
 #include <cassert>
 #include <cstdio>
@@ -11,6 +14,7 @@
 #include <deque>
 #include <vector>
 #include <string>
+#include <cstring>
 using namespace djua;
 
 struct Registers : I2cPort {
@@ -141,7 +145,92 @@ static void modemAndLocationTests() {
     assert(!precisionGeofenceUsable(gnss.fix, 5000, 10));
     puts("PASS A7670/location: LTE without SMS, SMSC, CMS error, registration loss, GNSS priority, freshness, cell geofence rejected");
 }
-int main() {
+struct TestStore : D2Store {
+    std::map<std::string, std::vector<uint8_t>> records;
+    int writes = 0, failAt = -1;
+    ReadResult read(const char* name, void* out, size_t size) override {
+        auto entry = records.find(name); if (entry == records.end()) return ReadResult::Missing;
+        if (entry->second.size() != size) return ReadResult::Error;
+        memcpy(out, entry->second.data(), size); return ReadResult::Ok;
+    }
+    bool write(const char* name, const void* data, size_t size) override {
+        if (++writes == failAt) return false;
+        const uint8_t* p = static_cast<const uint8_t*>(data); records[name] = {p, p + size}; return true;
+    }
+};
+static uint8_t publicTestKey[32];
+static TelemetryV3 vectorFrame() {
+    TelemetryV3 frame;
+    strcpy(frame.device, "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456");
+    frame.sequence = frame.snapshot = 1; frame.uptime = 123456; frame.interval = 1800;
+    frame.location = {-4.33086, 15.30678, true}; frame.location.ageMs = 1000;
+    frame.battery = {12.543, -1.234, -15.5, -4.56, true, true, MeasureFault::None, 2};
+    frame.solar = {18.2, 2, 36.4, 18.2, true, true, MeasureFault::None, 3};
+    frame.ac.electric = {230, 1.2, 230, 115, true, true, MeasureFault::None, 4};
+    frame.ac.apparentVA = 276; frame.ac.powerFactor = .83; frame.ac.frequencyHz = 50;
+    frame.ac.counterWh = 1000; frame.ac.counterValid = true; frame.ac.energyFault = MeasureFault::None;
+    for (auto& slot : frame.dc) slot = {12, 2, 24, 12, true, true, MeasureFault::None, 5};
+    frame.dc[2] = {}; frame.dc[2].fault = MeasureFault::Io;
+    return frame;
+}
+static void codecTests() {
+    auto frame = vectorFrame(); char sms[D2_SMS_CAPACITY]; TelemetryV3 parsed;
+    assert(encodeD3(frame, publicTestKey, true, hostHmac, sms) == D2Error::Ok);
+    size_t length = 0; assert(countD2Septets(sms, length) == D2Error::Ok && length == 149);
+    assert(decodeD3(sms, publicTestKey, true, hostHmac, parsed) == D2Error::Ok);
+    assert(parsed.part == 0 && near(parsed.battery.current, -1.234));
+    assert(near(parsed.ac.frequencyHz, 50) && parsed.ac.counterWh == 1000);
+    sms[strlen(sms) - 1] = sms[strlen(sms) - 1] == 'A' ? 'B' : 'A';
+    assert(decodeD3(sms, publicTestKey, true, hostHmac, parsed) == D2Error::AuthInvalid);
+    frame.part = 1; frame.sequence = 2;
+    assert(encodeD3(frame, publicTestKey, true, hostHmac, sms) == D2Error::Ok);
+    assert(decodeD3(sms, publicTestKey, true, hostHmac, parsed) == D2Error::Ok);
+    assert(parsed.dc[0].valid && !parsed.dc[2].valid && parsed.dc[2].fault == MeasureFault::Io);
+    frame.dc[2].power = 10;
+    assert(encodeD3(frame, publicTestKey, true, hostHmac, sms) == D2Error::NonCanonicalAbsent && !*sms);
+    frame = vectorFrame(); frame.ac.electric.energyComplete = true; frame.ac.energyFault = MeasureFault::CounterReset;
+    assert(encodeD3(frame, publicTestKey, true, hostHmac, sms) == D2Error::FlagDependency);
+    frame = vectorFrame(); frame.battery.current = 31;
+    assert(encodeD3(frame, publicTestKey, true, hostHmac, sms) == D2Error::OutOfRange);
+    frame = vectorFrame(); assert(encodeD3(frame, nullptr, true, hostHmac, sms) == D2Error::AuthRequired);
+    TestStore store; D2Journal journal(store, hostHmac); journal.begin();
+    assert(journal.provision("TEST-001", publicTestKey, "+243810000001", "PUBLIC-TEST"));
+    D2Frame old; old.interval = 1800; D2Error error;
+    assert(journal.enqueue(old, error) == EnqueueResult::Stored);
+    const std::string oldText = journal.at(0)->text;
+    frame = vectorFrame(); assert(journal.enqueueV3(frame, error) == EnqueueResult::Stored && journal.count() == 3);
+    const std::string first = journal.at(1)->text, second = journal.at(2)->text;
+    assert(journal.at(1)->sequence + 1 == journal.at(2)->sequence);
+    D2Journal reboot(store, hostHmac); reboot.begin();
+    assert(reboot.state() == D2State::Ready && reboot.count() == 3);
+    assert(oldText == reboot.at(0)->text && first == reboot.at(1)->text && second == reboot.at(2)->text);
+    assert(reboot.recordAttempt(1) && first == reboot.at(1)->text);
+    assert(reboot.acceptedByModem(1));
+    D2Journal partial(store, hostHmac); partial.begin();
+    assert(partial.state() == D2State::Ready && partial.count() == 2 && second == partial.at(1)->text);
+    TestStore failing; D2Journal atomic(failing, hostHmac); atomic.begin();
+    assert(atomic.provision("TEST-001", publicTestKey, "+243810000001", "PUBLIC-TEST"));
+    failing.failAt = failing.writes + 2;
+    assert(atomic.enqueueV3(frame, error) == EnqueueResult::StorageError && atomic.count() == 0);
+    D2Journal recovered(failing, hostHmac); recovered.begin();
+    assert(recovered.state() == D2State::Ready && recovered.count() == 0);
+    assert(recovered.enqueueV3(frame, error) == EnqueueResult::Stored);
+    assert(recovered.at(0)->sequence == 257);
+    assert(recovered.enqueueV3(frame, error) == EnqueueResult::Stored);
+    assert(recovered.enqueueV3(frame, error) == EnqueueResult::Full);
+    puts("PASS D3: length/HMAC, fields, absence, ranges, paired atomic NVS, legacy migration, reboot, immutable retries, capacity");
+}
+int main(int argc, char** argv) {
+    for (unsigned i = 0; i < 32; ++i) publicTestKey[i] = static_cast<uint8_t>(i + 1);
+    if (argc == 2 && !strcmp(argv[1], "vector")) {
+        auto frame = vectorFrame(); char sms[D2_SMS_CAPACITY];
+        for (uint8_t part = 0; part < 2; ++part) {
+            frame.part = part; frame.sequence = frame.snapshot + part;
+            assert(encodeD3(frame, publicTestKey, true, hostHmac, sms) == D2Error::Ok); puts(sms);
+        }
+        return 0;
+    }
+    codecTests();
     modemAndLocationTests();
     pzemTests();
     Registers port; I2cBus bus(port);

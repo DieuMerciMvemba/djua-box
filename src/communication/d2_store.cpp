@@ -45,8 +45,14 @@ void D2Journal::begin() {
         queue_.count > D2_QUEUE_CAPACITY) { state_ = D2State::StorageFault; return; }
     for (size_t i = 0; i < queue_.count; ++i) {
         const auto& item = queue_.items[i]; D2Frame frame;
-        if (!terminated(item.text, sizeof(item.text)) ||
-            decodeD2(item.text, identity_.key, true, hmac_, frame) != D2Error::Ok ||
+        if (!terminated(item.text, sizeof(item.text))) { state_ = D2State::StorageFault; return; }
+        D2Error decoded = D2Error::InvalidFields;
+        if (!strncmp(item.text, "D3T,", 4)) {
+            TelemetryV3 v3;
+            decoded = decodeD3(item.text, identity_.key, true, hmac_, v3);
+            strcpy(frame.device, v3.device); frame.sequence = v3.sequence;
+        } else decoded = decodeD2(item.text, identity_.key, true, hmac_, frame);
+        if (decoded != D2Error::Ok ||
             strcmp(frame.device, identity_.device) || frame.sequence != item.sequence ||
             frame.event != item.urgent || item.sequence >= sequence.next) {
             state_ = D2State::StorageFault; return;
@@ -126,6 +132,27 @@ EnqueueResult D2Journal::enqueue(D2Frame frame, D2Error& codecError) {
     return saveQueue(candidate) ? EnqueueResult::Stored : EnqueueResult::StorageError;
 }
 const D2QueuedSms* D2Journal::at(size_t index) const { return index < queue_.count ? &queue_.items[index] : nullptr; }
+EnqueueResult D2Journal::enqueueV3(TelemetryV3 frame, D2Error& codecError) {
+    codecError = D2Error::Ok;
+    if (state_ != D2State::Ready) return EnqueueResult::NotReady;
+    size_t periodic = 0;
+    for (size_t i = 0; i < queue_.count; ++i) if (!queue_.items[i].urgent) ++periodic;
+    if (queue_.count + 2 > D2_QUEUE_CAPACITY || periodic + 2 > D2_PERIODIC_CAPACITY) return EnqueueResult::Full;
+    strcpy(frame.device, identity_.device);
+    if (!nextSequence(frame.snapshot) || frame.snapshot == UINT32_MAX) return EnqueueResult::NotReady;
+    D2Queue candidate = queue_;
+    for (uint8_t part = 0; part < 2; ++part) {
+        frame.part = part;
+        if (part == 0) frame.sequence = frame.snapshot;
+        else if (!nextSequence(frame.sequence)) return EnqueueResult::NotReady;
+        D2QueuedSms item{}; item.sequence = frame.sequence;
+        codecError = encodeD3(frame, identity_.key, true, hmac_, item.text);
+        if (codecError != D2Error::Ok) return EnqueueResult::CodecError;
+        candidate.items[candidate.count++] = item;
+    }
+    // One atomic NVS blob commit: never persist just the first part.
+    return saveQueue(candidate) ? EnqueueResult::Stored : EnqueueResult::StorageError;
+}
 bool D2Journal::recordAttempt(size_t index) {
     if (index >= queue_.count || (state_ != D2State::Ready && state_ != D2State::SequenceExhausted)) return false;
     D2Queue candidate = queue_;
