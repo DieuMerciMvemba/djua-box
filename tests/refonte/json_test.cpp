@@ -3,7 +3,7 @@
 #include <cstring>
 #include <cstdio>
 int main() {
-    TelemetryData data{}; data.v3Present = true; data.v3.interval = 1800;
+    TelemetryData data{}; data.v3.interval = 1800;
     data.v3.location.source = djua::LocationSource::NeoGnss;
     data.v3.battery = {12, -1, -12, -6, true, true, djua::MeasureFault::None, 10};
     data.v3.dc[0] = {12, 0, 0, 0, true, true, djua::MeasureFault::None, 10};

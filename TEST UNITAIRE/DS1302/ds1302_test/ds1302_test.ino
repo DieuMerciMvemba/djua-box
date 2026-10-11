@@ -5,8 +5,8 @@
 // CONFIGURATION AUTONOME DU TEST DS1302
 // =====================================================
 
-constexpr uint8_t DS1302_TEST_CLOCK_PIN = 26; // CLK / SCLK
-constexpr uint8_t DS1302_TEST_DATA_PIN = 25;  // DAT / IO
+constexpr uint8_t DS1302_TEST_CLOCK_PIN = 25; // CLK / SCLK
+constexpr uint8_t DS1302_TEST_DATA_PIN = 26;  // DAT / IO
 constexpr uint8_t DS1302_TEST_CE_PIN = 27;    // RST / CE
 
 constexpr unsigned long DS1302_TEST_SERIAL_BAUD = 115200UL;

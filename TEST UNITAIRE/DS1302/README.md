@@ -20,11 +20,11 @@ Documentation officielle : <https://github.com/Makuna/Rtc>
 | --- | --- |
 | `VCC` | `3V3` |
 | `GND` | `GND` |
-| `DAT` ou `IO` | GPIO 25 |
-| `CLK` ou `SCLK` | GPIO 26 |
+| `DAT` ou `IO` | GPIO 26 |
+| `CLK` ou `SCLK` | GPIO 25 |
 | `RST` ou `CE` | GPIO 27 |
 
-Ces trois GPIO sont ceux retenus pour l'intégration dans le firmware principal. Ils évitent le GPS sur GPIO 16/17 et l'INA219 sur GPIO 33/14. Le même câblage peut donc être conservé entre ce test autonome et le firmware complet.
+Ces trois GPIO correspondent au firmware principal. Les INA228 et l'INA3221 utilisent I²C21/22, le NEO-8M UART2 RX16/TX17, le PZEM RX35/TX14 et l'A7670 UART1 RX32/TX13.
 
 Ne jamais appliquer un signal logique de 5 V directement sur une entrée de l'ESP32. Vérifier également le type de pile ou d'accumulateur monté sur la carte DS1302 avant d'utiliser un éventuel circuit de charge.
 

@@ -1,107 +1,72 @@
-# Audit de refonte IoT Box — phase 0
+# Architecture et contraintes matérielles IoT Box V2
 
-Date : 11 octobre 2026. Périmètre : ce dépôt uniquement. Branche dédiée :
-`codex/refonte-firmware-iot-box-v2`. État initial Git propre.
+Mise à jour : 11 octobre 2026. Le firmware possède une seule architecture matérielle.
+`iot_box.ino` appelle directement `src/firmware_v2.cpp`. Les profils SMS,
+MQTT et HTTP choisissent uniquement le transport.
 
-## Architecture observée et incompatibilités
+## Composants et brochage
 
-`iot_box.ino` orchestre les capteurs, les fenêtres énergétiques, la geofence,
-les indicateurs et les transports exclusifs. La batterie initialise actuellement
-Wire : ce couplage sera remplacé par un gestionnaire I²C commun.
-
-| Fonction | Existant | Cible | Changement / risque |
-| --- | --- | --- | --- |
-| Batterie | INA219 0x40, calibre fixe 2 A | INA228 0x40, shunt 30 A/75 mV | Calibration indépendante, courant signé |
-| Solaire | INA219 0x41, désactivé | INA228 0x41, shunt 30 A/75 mV | Activation explicite et résistance indépendante |
-| Charges DC | Un INA219 0x44 non configuré | INA3221 0x42, trois voies + INA228 TV 0x44 | Identités DC1/DC2/DC3/TV ; aucun port USB |
-| AC | ADC ZMPT101B/ACS712, acquisition bloquante | PZEM-004T 10 A | Modbus/CRC, compteur matériel, fréquence/PF ; pas de Q signée ni d'harmoniques |
-| Modem | SIM800C UART1 | A7670 UART1 | Enregistrement LTE distinct de capacité SMS ; variante de carte à confirmer |
-| Position | NEO-6M UART2/TinyGPSPlus | NEO-8M UART2 | Service de localisation, source/âge/précision ; cellulaire optionnel |
-| Temps | DS1302 local GMT+1 | Conservé | Epoch UTC seulement si date valide ; aucune heure fictive |
-| Télémétrie | D2T2 : une charge DC | Contrat versionné proposé | Le récepteur externe ne comprend pas encore le nouveau contrat |
-| Persistance | NVS `djua_d2`, SMS signé immuable | Conservée | Relire D2T/D2T2/D2E sans changement de sens ni effacement |
-
-Les trois UART matériels sont occupés : UART0 console, UART1 modem, UART2 GPS.
-Un quatrième périphérique ne peut pas recevoir un de ces UART sans arbitrage.
-Après échange avec l'utilisateur, choix cible : UART logiciel à 9600 bauds pour
-le PZEM avec EspSoftwareSerial, UART matériels indépendants conservés. L'utilisateur
-a autorisé cette bibliothèque et les documentations officielles des composants.
-Le pont SC16IS750 était une alternative ; il n'est pas requis par cette solution.
-
-## Brochage cible
-
-| Liaison | Broches ESP32 | Connexion / contrôle nécessaire |
+| Fonction | Composant | Liaison ESP32 |
 | --- | --- | --- |
-| I²C partagé | SDA21, SCL22 | INA228 BAT 0x40, SOL 0x41, TV 0x44 ; INA3221 0x42 ; straps à contrôler |
-| A7670 UART1 | RX32, TX13 | TX modem vers RX32, RX modem vers TX13 ; niveaux et alimentation de la carte à confirmer |
-| NEO-8M UART2 | RX16, TX17 | TX GPS vers RX16, RX GPS vers TX17 ; ESP32-WROOM présumé, WROVER/PSRAM à vérifier |
-| PZEM UART logiciel | RX35, TX14 | TX PZEM vers RX35 ; RX PZEM vers TX14 ; GPIO35 entrée seule ; adaptation des niveaux requise selon carte |
-| DS1302 | DATA26, CLK25, CE27 | Conservé |
-| Indicateurs | LEDs18/19/23, buzzer33 | Conservés |
-| Console / programmation | UART0 GPIO1/3 | Conservée et distincte du PZEM |
+| Batterie | INA228, shunt 30 A/75 mV | I²C 0x40 |
+| Solaire | INA228, shunt 30 A/75 mV | I²C 0x41 |
+| DC1/DC2/DC3 | INA3221, trois shunts 10 mΩ | I²C 0x42 |
+| TV | INA228, shunt 30 A/75 mV | I²C 0x44 |
+| AC | PZEM-004T V3.0, 10 A, shunt intégré | UART logiciel RX35/TX14, 9600 bauds |
+| SMS | A7670 | UART1 RX32/TX13, 115200 bauds |
+| Position principale | NEO-8M | UART2 RX16/TX17, 9600 bauds |
+| Horloge | DS1302 | DATA26/CLOCK25/CE27 |
+| Indication locale | LEDs et buzzer | LEDs18/19/23, buzzer33 |
+| Console USB | UART0 | GPIO1/3 |
 
-GPIO34 de l'ancien ZMPT devient libre. GPIO14 ne peut pas simultanément servir
-de PWRKEY : la configuration devra détecter ce conflit. Les limites électriques,
-la protection secteur et les isolations se vérifient sur le montage réel.
+Les quatre circuits INA partagent SDA21/SCL22 à 100 kHz. Le gestionnaire
+`I2cBus` initialise le bus une seule fois et refuse les conflits d'adresses
+configurés. Contrôler les straps séparément : un scanner ne distingue pas
+deux circuits physiques répondant à la même adresse.
 
-## Shunts et mesures
+Le PZEM utilise EspSoftwareSerial 8.1.0, autorisé par l'utilisateur.
+Console, modem et GPS conservent des UART matériels indépendants.
+GPIO35 est une entrée sans pull-up interne. GPIO14 est réservé au TX du PZEM ;
+PWRKEY doit utiliser une autre broche confirmée, ou rester à -1 pour un modem
+allumé indépendamment. Confirmer les niveaux électriques de chaque carte.
 
-Le shunt 30 A/75 mV vaut **0,0025 Ω**. À 30 A, il dissipe **2,25 W** et
-présente 75 mV. Chaque INA228 reçoit sa propre résistance, son courant maximal,
-son sens et son calibre ADC. Une plage shunt inférieure à 75 mV ne convient pas
-au courant nominal. Les valeurs de registres et limites doivent être vérifiées
-dans la documentation officielle avant activation.
+## Dimensionnement des shunts
 
-Chaque shunt INA3221 vaut **0,010 Ω**. Sa chute et sa dissipation sont `I × R`
-et `I² × R`. La mission ne fournit pas la puissance admissible de ces shunts
-ni le courant nominal des ports : les limites logicielles devront être explicites,
-et leur validation matérielle restera obligatoire.
+Chaque INA228 a sa résistance, sa polarité et ses limites propres dans
+`src/config.h`. Un shunt 30 A/75 mV vaut 2,5 mΩ, chute de 75 mV et dissipation
+de 2,25 W à 30 A. La plage ±163,84 mV est utilisée ; ±40,96 mV est insuffisante.
+La puissance admissible configurée de 3 W reste à confirmer physiquement.
 
-Les énergies DC et batterie restent des intégrales signées de mesures valides.
-Un trou d'acquisition rend la fenêtre incomplète. Pour le PZEM, une baisse du
-compteur indique une remise à zéro ou un défaut : pas de delta négatif inventé.
-Un compteur ne garantit pas, à lui seul, que la puissance/fenêtre est valide.
+Chaque voie INA3221 utilise 10 mΩ. À la limite provisoire de 5 A : chute de
+50 mV et dissipation de 0,25 W. La puissance configurée de 1 W est provisoire.
+Vérifier la résistance effective et les shunts éventuellement présents sur
+les cartes. Les limites logicielles ne garantissent pas la tenue thermique.
 
-## Décisions protocolaires
+## Flux et persistance
 
-Ne pas réutiliser les bits réservés D2T2 pour changer silencieusement son sens.
-Comparer un SMS unique (perte de précision/champs) à plusieurs SMS indépendants
-signés. Proposition : deux SMS GSM-7 versionnés liés par un identifiant de fenêtre,
-avec numéros de séquence distincts, chacun vérifié avant persistance. Le récepteur
-doit exposer explicitement une réception partielle ; ni l'envoi ni `+CMGS` ne
-prouvent la réception de la paire. Une paire consomme deux places dans la file.
+Pilotes → mesures BAT/SOL/AC/DC1/DC2/DC3/TV → validité et âge →
+énergie par voie → télémétrie V3 → deux SMS D3 signés → NVS → A7670.
 
-Le stockage conserve les mêmes structures de SMS et leur CRC. La création d'une
-paire doit être atomique côté NVS. Les anciens textes continuent à être décodés
-selon leur préfixe puis retransmis sans réencodage. Le déploiement d'un nouveau
-contrat nécessite l'adaptation du récepteur, livrée ici sous forme de spécification.
+Les acquisitions DC sont déclenchées toutes les 10 s. Le PZEM est interrogé
+toutes les 2 s. Les trous de mesure rendent l'énergie de la fenêtre incomplète.
+Une baisse du compteur AC ne produit jamais une consommation négative.
 
-## Risques et validations restantes
+Le DS1302 fournit l'heure locale GMT+1, convertie en UTC pour les SMS.
+Le NEO-8M fournit la position principale. Une interface cellulaire optionnelle
+existe, sans service LBS actif ; une position cellulaire ne déclenche pas
+la geofence.
 
-- Variante A7670, tensions UART, alimentation, baud et PWRKEY inconnus :
-  configuration explicite ; ne pas réutiliser la validation du SIM800C.
-- Version PZEM réellement 10 A, alimentation de son interface et niveaux UART :
-  à vérifier. Tester les CRC, timeouts et pertes sous trafic GPS/LTE simultané.
-- INA228 : mesurer les résistances réelles, contrôler straps, saturation,
-  calibration, signe et dissipation ; aucun test simulé ne prouve la précision.
-- INA3221 : vérifier l'absence de shunts embarqués supplémentaires et la puissance
-  des trois 10 mΩ. Deux circuits physiques à la même adresse ne se distinguent
-  pas par un scanner ; les straps doivent être contrôlés avant connexion commune.
-- NEO-8M : confirmer la référence physique et les phrases NMEA ; HDOP n'est pas
-  une précision en mètres. La localisation cellulaire ne déclenchera pas la geofence.
-- Récepteur absent : aucun fichier ni contrat externe modifié, aucun succès
-  d'envoi/réception affirmé.
+Les deux SMS D3 portent des séquences distinctes et un snapshot commun.
+La paire est persistée atomiquement. Le journal `djua_d2` conserve ses
+structures et les textes signés déjà enregistrés, avec lecture selon leur
+version. Aucun pilote matériel alternatif n'est nécessaire à cette lecture.
 
-## Référence de tests avant changements
+## Mise en service
 
-Exécutés : `python tests/sms/run_tests.py` (7 tests Python, 8 groupes C++ PASS)
-et `python tests/dc_load/run_tests.py` (4 variantes PASS). Ces résultats couvrent
-l'ancien firmware ; ils ne valident aucun nouveau composant matériel.
+Les confirmations des capteurs et du modem restent à zéro jusqu'aux contrôles
+physiques. `D3_RECEIVER_ENABLED=0` bloque les nouvelles paires jusqu'à
+adaptation du récepteur externe. Ne pas effacer la NVS ni réinitialiser
+les séquences.
 
-## Lots suivants
-
-1. Bus partagé, interface de mesure et pilotes INA3221/INA228, tests de registres.
-2. Pilote PZEM, UART logiciel et suivi du compteur d'énergie.
-3. A7670, réseau LTE/SMS, service de localisation NEO-8M, bancs simulés.
-4. Modèle multi-voies, contrat versionné, encodeurs et file atomique compatible.
-5. Intégration, compilations de profils, régressions et validation réelle documentée.
+Vérifications réelles : [VALIDATION_V2.md](VALIDATION_V2.md).
+Contrat du récepteur : [SMS_D3.md](SMS_D3.md).

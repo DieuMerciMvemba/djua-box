@@ -116,17 +116,17 @@ struct FixProvider : LocationProvider {
     LocationFix read() override { return fix; }
 };
 static void modemAndLocationTests() {
-    AtFake io; GsmEngine lte(io, 10000, 120000, 30000, GsmModel::A7670);
+    AtFake io; GsmEngine lte(io, 10000, 120000, 30000);
     initLte(lte, io); assert(lte.ready() && lte.lteRegistered() && lte.smsConfigured());
     assert(io.tx.find("AT+CEREG?") != std::string::npos);
     assert(io.tx.find("AT+CGNS") == std::string::npos);
     assert(lte.submit("+243810000001", "D2E,A,1,-,0,GX,-,-,-,00,-", 20));
     io.feed(">"); lte.update(21); io.feed("+CMS ERROR: 500\r\n"); lte.update(22);
     assert(lte.takeResult() == GsmResult::Failed && lte.errorCode() == 500);
-    AtFake noSms; GsmEngine blocked(noSms, 10000, 120000, 30000, GsmModel::A7670);
+    AtFake noSms; GsmEngine blocked(noSms, 10000, 120000, 30000);
     initLte(blocked, noSms, false);
     assert(!blocked.ready() && blocked.fault() == GsmFault::SmsUnsupported);
-    AtFake noCentre; GsmEngine missing(noCentre, 10000, 120000, 30000, GsmModel::A7670);
+    AtFake noCentre; GsmEngine missing(noCentre, 10000, 120000, 30000);
     initLte(missing, noCentre, true, false);
     assert(!missing.ready() && missing.fault() == GsmFault::ServiceCentreMissing);
     initLte(lte, io); io.feed("+CEREG: 5,\"001A\",\"00001234\",7\r\n"); lte.update(30);

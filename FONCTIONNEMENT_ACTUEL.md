@@ -1,10 +1,9 @@
 # Fonctionnement actuel de l’IoT Box V2
 
 Mise à jour : 11 octobre 2026. La branche `codex/refonte-firmware-iot-box-v2`
-implémente le profil matériel V2 ; la validation physique reste à réaliser.
+implémente uniquement le matériel V2 ; la validation physique reste à réaliser.
 Les nouveaux capteurs, le modem et l’émission D3 sont désactivés par défaut
-jusqu’à leur confirmation. Le code historique reste disponible avec
-`IOT_HARDWARE_V2=0` pour les bancs précédents.
+jusqu’à leur confirmation. Aucun profil de matériel alternatif n'est conservé.
 
 ## Architecture
 
@@ -33,7 +32,7 @@ matériel n’est partagé. GPIO14 ne peut pas simultanément piloter PWRKEY.
 
 ## Responsabilités
 
-- `iot_box.ino` sélectionne le profil ; `src/firmware_v2.cpp` orchestre la V2.
+- `iot_box.ino` lance directement `src/firmware_v2.cpp`, qui orchestre la V2.
 - `src/drivers` contient le bus I²C partagé, INA228 multi-instance, INA3221
   trois voies et PZEM Modbus/CRC. Ces pilotes ont un cœur testable sans ESP32.
 - `src/config.h` centralise résistances, calibres, limites, polarités, adresses,
@@ -64,8 +63,7 @@ résultats et défauts. Les registres restent figés après cette conversion, ce
 Acquisitions → validité/âge → fenêtres par voie → clôture → modèle V3 → deux
 SMS D3T signés → écriture atomique NVS → scheduler → A7670 → opérateur.
 La période SMS configurée dans le code actuel est **60 s** ; 1800 s se choisit
-explicitement avec `D2_PERIOD_SECONDS`. L’audit a relevé cette différence avec
-les anciens guides qui annonçaient systématiquement 30 minutes.
+explicitement avec `D2_PERIOD_SECONDS`.
 
 La partie 0 transporte batterie, solaire, AC et localisation ; la partie 1
 transporte DC1/DC2/DC3/TV. Aucun port USB n’est mesuré. Chaque SMS est au maximum
@@ -90,7 +88,7 @@ En JSON, les valeurs absentes deviennent null. En SMS, elles occupent des zéros
 avec flags éteints ; un vrai zéro conserve valid=1. Le compteur PZEM a une
 résolution physique de 1 Wh ; aucune énergie plus fine n’est inventée.
 Le DS1302 conserve son comportement GMT+1, sans heure de compilation fiable en
-production. Les anciens secrets Wi-Fi/HTTP préexistants n’ont pas été modifiés.
+production.
 
 ## Profils et vérification
 

@@ -2,6 +2,11 @@
 #include <iostream>
 #include "Arduino.h"
 #include "esp_timer.h"
+#define V2_BATTERY_CONFIGURED 1
+#define V2_SOLAR_CONFIGURED 1
+#define V2_DC_CONFIGURED 1
+#define V2_TV_CONFIGURED 1
+#define PZEM_HARDWARE_CONFIGURED 1
 #include "../../../src/config.h"
 #include "../../../src/pins.h"
 #include "../../../src/indicators/indicators.cpp"
@@ -26,6 +31,12 @@ static size_t soundLogs() {
     for (const auto& log : Serial.logs)
         if (log.find("[BUZZER] Pattern") != std::string::npos) ++count;
     return count;
+}
+static void recordTestSensors(bool batteryAvailable, bool batteryValid, bool acValid,
+                              bool rtcValid, float voltage) {
+    const bool available[6] = {batteryAvailable, true, true, true, true, true};
+    const bool valid[6] = {batteryValid, true, true, true, true, true};
+    recordV2SensorStatus(available, valid, acValid, rtcValid, voltage);
 }
 static void resetStatus() {
     triggerBuzzer(BUZZER_NONE);
@@ -144,26 +155,45 @@ int main() {
     assert(getAlertIndicatorState() == ALERT_GEOFENCE);
 
     resetStatus();
-    for (int i = 0; i < 2; ++i) recordSensorStatus(true, false, true, true, 0);
+    for (int i = 0; i < 2; ++i) recordTestSensors(true, false, true, true, 0);
     assert(getAlertIndicatorState() == ALERT_NONE);
-    recordSensorStatus(true, false, true, true, 0); assert(getAlertIndicatorState() == ALERT_WARNING);
-    recordSensorStatus(true, true, true, true, 12); assert(getAlertIndicatorState() == ALERT_NONE);
-    for (int i = 0; i < 3; ++i) recordSensorStatus(false, false, true, true, 0);
+    recordTestSensors(true, false, true, true, 0); assert(getAlertIndicatorState() == ALERT_WARNING);
+    recordTestSensors(true, true, true, true, 12); assert(getAlertIndicatorState() == ALERT_NONE);
+    for (int i = 0; i < 3; ++i) recordTestSensors(false, false, true, true, 0);
     assert(getAlertIndicatorState() == ALERT_CRITICAL);
-    recordSensorStatus(false, false, true, false, 0); assert(getAlertIndicatorState() == ALERT_CRITICAL);
+    recordTestSensors(false, false, true, false, 0); assert(getAlertIndicatorState() == ALERT_CRITICAL);
     recordGeofenceStatus(true, false); assert(getAlertIndicatorState() == ALERT_GEOFENCE);
     const size_t exits = soundLogs();
     recordGeofenceStatus(true, false); assert(soundLogs() == exits);
-    recordSensorStatus(false, false, false, false, 0); assert(getAlertIndicatorState() == ALERT_GEOFENCE);
+    recordTestSensors(false, false, false, false, 0); assert(getAlertIndicatorState() == ALERT_GEOFENCE);
     recordGeofenceStatus(false, true); assert(getAlertIndicatorState() == ALERT_CRITICAL);
     const size_t enters = soundLogs();
     recordGeofenceStatus(false, true); assert(soundLogs() == enters);
 
     resetStatus();
-    for (int i = 0; i < 3; ++i) recordSensorStatus(true, false, false, true, 0);
+    for (int i = 0; i < 3; ++i) recordTestSensors(true, false, false, true, 0);
     assert(getAlertIndicatorState() == ALERT_CRITICAL);
-    recordSensorStatus(true, true, true, false, 12); assert(getAlertIndicatorState() == ALERT_WARNING);
-    recordSensorStatus(true, true, true, true, 1); assert(getAlertIndicatorState() == ALERT_NONE);
+    recordTestSensors(true, true, true, false, 12); assert(getAlertIndicatorState() == ALERT_WARNING);
+    recordTestSensors(true, true, true, true, 1); assert(getAlertIndicatorState() == ALERT_NONE);
+    // Les nouvelles voies sont diagnostiquees via le meme cycle groupe.
+    bool present[6] = {true, true, true, true, true, true};
+    bool valid[6] = {true, true, true, true, true, true};
+    for (unsigned failed : {1U, 2U, 3U, 4U, 5U}) {
+        resetStatus(); valid[failed] = false;
+        for (unsigned n = 0; n < SENSOR_WARNING_FAILURE_COUNT; ++n)
+            recordV2SensorStatus(present, valid, true, true, 12);
+        assert(getAlertIndicatorState() == ALERT_WARNING);
+        valid[failed] = true;
+        recordV2SensorStatus(present, valid, true, true, 12);
+        assert(getAlertIndicatorState() == ALERT_NONE);
+    }
+    present[1] = false;
+    for (unsigned n = 0; n < SENSOR_WARNING_FAILURE_COUNT; ++n)
+        recordV2SensorStatus(present, valid, true, true, 12);
+    assert(getAlertIndicatorState() == ALERT_WARNING);
+    present[1] = true;
+    recordV2SensorStatus(present, valid, true, true, 12);
+    assert(getAlertIndicatorState() == ALERT_NONE);
     // Integration avec les transitions reelles du geofencing, sans GPS simule valide.
     initGeofence();
     GPSData position = {};

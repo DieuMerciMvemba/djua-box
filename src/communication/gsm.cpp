@@ -6,12 +6,6 @@
 namespace djua {
 namespace {
 constexpr const char* commands[] = {
-    "AT\r", "ATE0\r", "AT+CMEE=2\r", "AT+CPIN?\r", "AT+CREG?\r",
-    // IRA = ASCII cote UART ; DCS=0 impose GSM-7 cote SMS. Important pour '_',
-    // dont le code ASCII 0x5F differe du code GSM-7 0x11.
-    "AT+CMGF=1\r", "AT+CSCS=\"IRA\"\r", "AT+CSMP=17,167,0,0\r"
-};
-constexpr const char* a7670Commands[] = {
     "AT\r", "ATE0\r", "AT+CMEE=2\r", "AT+CPIN?\r", "AT+CEREG?\r", "AT+CREG?\r",
     "AT+CSMS?\r", "AT+CSCA?\r", "AT+CMGF=1\r", "AT+CSCS=\"IRA\"\r", "AT+CSMP=17,167,0,0\r"
 };
@@ -40,9 +34,9 @@ void GsmEngine::begin(bool configured, uint32_t now) {
 }
 void GsmEngine::startCommand(uint32_t now) {
     state_ = GsmState::Initializing; since_ = now; used_ = 0;
-    const char* command = model_ == GsmModel::A7670 ? a7670Commands[step_] : commands[step_];
+    const char* command = commands[step_];
     // Queries must supply fresh evidence, not a previous successful response.
-    if (model_ == GsmModel::A7670) {
+    {
         if (step_ == 4) lteRegistered_ = false;
         if (step_ == 5) csRegistered_ = false;
         if (step_ == 6) smsSupported_ = false;
@@ -65,19 +59,19 @@ void GsmEngine::line(uint32_t now) {
     if (!strncmp(line_, "+CREG:", 6)) {
         const int registration = registrationStatus(line_ + 6);
         csRegistered_ = registration == 1 || registration == 5 ||
-            (model_ == GsmModel::A7670 && (registration == 6 || registration == 7));
+            (registration == 6 || registration == 7);
         registered_ = csRegistered_ || lteRegistered_;
     }
-    if (model_ == GsmModel::A7670 && !strncmp(line_, "+CEREG:", 7)) {
+    if (!strncmp(line_, "+CEREG:", 7)) {
         const int registration = registrationStatus(line_ + 7);
         lteRegistered_ = registration == 1 || registration == 5;
         registered_ = csRegistered_ || lteRegistered_;
     }
-    if (model_ == GsmModel::A7670 && !strncmp(line_, "+CSMS:", 6)) {
+    if (!strncmp(line_, "+CSMS:", 6)) {
         int service = -1, mt = -1, mo = -1, bm = -1;
         smsSupported_ = sscanf(line_ + 6, " %d,%d,%d,%d", &service, &mt, &mo, &bm) == 4 && mo == 1;
     }
-    if (model_ == GsmModel::A7670 && !strncmp(line_, "+CSCA:", 6)) {
+    if (!strncmp(line_, "+CSCA:", 6)) {
         serviceCentre_ = false;
         const char* first = strchr(line_ + 6, '"');
         const char* last = first ? strchr(first + 1, '"') : nullptr;
@@ -97,7 +91,7 @@ void GsmEngine::line(uint32_t now) {
     }
     if (!strcmp(line_, "ERROR") || !strncmp(line_, "+CMS ERROR", 10) ||
         !strncmp(line_, "+CME ERROR", 10) || !strcmp(line_, "NORMAL POWER DOWN") ||
-        (model_ == GsmModel::A7670 && !strcmp(line_, "RDY"))) {
+        (!strcmp(line_, "RDY"))) {
         const char* colon = strchr(line_, ':');
         if (colon) { char* end = nullptr; long code = strtol(colon + 1, &end, 10);
             if (end != colon + 1 && code >= 0 && code <= 65535) errorCode_ = static_cast<int>(code); }
@@ -112,16 +106,15 @@ void GsmEngine::line(uint32_t now) {
     }
     if (state_ != GsmState::Initializing) return;
     if (step_ == 3 && !simReady_) { fail(now, GsmFault::SimNotReady); return; }
-    if (((step_ == 4 && model_ == GsmModel::Sim800) || (step_ == 5 && model_ == GsmModel::A7670)) && !registered_) {
+    if (step_ == 5 && !registered_) {
         fail(now, GsmFault::NotRegistered); return;
     }
-    if (model_ == GsmModel::A7670 && step_ == 6 && !smsSupported_) { fail(now, GsmFault::SmsUnsupported); return; }
-    if (model_ == GsmModel::A7670 && step_ == 7 && !serviceCentre_) { fail(now, GsmFault::ServiceCentreMissing); return; }
-    if (polling_ && (model_ == GsmModel::Sim800 || step_ == 7)) {
+    if (step_ == 6 && !smsSupported_) { fail(now, GsmFault::SmsUnsupported); return; }
+    if (step_ == 7 && !serviceCentre_) { fail(now, GsmFault::ServiceCentreMissing); return; }
+    if (polling_ && step_ == 7) {
         polling_ = false; state_ = GsmState::Ready; lastCheck_ = now; return;
     }
-    const size_t count = model_ == GsmModel::A7670 ? sizeof(a7670Commands) / sizeof(a7670Commands[0])
-                                                : sizeof(commands) / sizeof(commands[0]);
+    const size_t count = sizeof(commands) / sizeof(commands[0]);
     if (++step_ >= count) {
         state_ = GsmState::Ready; lastCheck_ = now;
         fault_ = GsmFault::None;
@@ -155,7 +148,7 @@ void GsmEngine::update(uint32_t now) {
 }
 bool GsmEngine::submit(const char* receiver, const char* sms, uint32_t now) {
     size_t septets = 0;
-    if (!ready() || !registered_ || (model_ == GsmModel::A7670 && !smsConfigured()) ||
+    if (!ready() || !registered_ || !smsConfigured() ||
         result_ != GsmResult::None || !validE164(receiver) ||
         countD2Septets(sms, septets) != D2Error::Ok || septets == 0) return false;
     char command[40]; snprintf(command, sizeof(command), "AT+CMGS=\"%s\"\r", receiver);

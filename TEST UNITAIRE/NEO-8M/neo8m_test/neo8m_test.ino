@@ -2,30 +2,30 @@
 #include <TinyGPSPlus.h>
 
 // =====================================================
-// CONFIGURATION AUTONOME DU TEST NEO-6M
+// CONFIGURATION AUTONOME DU TEST NEO-8M
 // =====================================================
 
-constexpr uint8_t NEO6M_TEST_RX_PIN = 16; // ESP32 RX <- TX du NEO-6M
-constexpr uint8_t NEO6M_TEST_TX_PIN = 17; // ESP32 TX -> RX du NEO-6M (optionnel)
+constexpr uint8_t NEO8M_TEST_RX_PIN = 16; // ESP32 RX <- TX du NEO-8M
+constexpr uint8_t NEO8M_TEST_TX_PIN = 17; // ESP32 TX -> RX du NEO-8M (optionnel)
 
-constexpr unsigned long NEO6M_TEST_SERIAL_BAUD = 115200UL;
-constexpr unsigned long NEO6M_TEST_GPS_BAUD = 9600UL;
-constexpr unsigned long NEO6M_TEST_DURATION_MS = 60000UL;
-constexpr unsigned long NEO6M_PROGRESS_INTERVAL_MS = 5000UL;
-constexpr unsigned long NEO6M_MINIMUM_CHARACTERS = 50UL;
+constexpr unsigned long NEO8M_TEST_SERIAL_BAUD = 115200UL;
+constexpr unsigned long NEO8M_TEST_GPS_BAUD = 9600UL;
+constexpr unsigned long NEO8M_TEST_DURATION_MS = 60000UL;
+constexpr unsigned long NEO8M_PROGRESS_INTERVAL_MS = 5000UL;
+constexpr unsigned long NEO8M_MINIMUM_CHARACTERS = 50UL;
 
 // 1 : recopie les trames NMEA brutes dans le moniteur serie.
 // 0 : affiche uniquement l'avancement et le rapport de test.
-#define NEO6M_ECHO_NMEA 0
+#define NEO8M_ECHO_NMEA 0
 
 // Sans vue degagee du ciel, l'absence de FIX n'indique pas forcement une panne.
 // Mettre a 1 pour rendre le FIX obligatoire pendant la duree du test.
-#define NEO6M_REQUIRE_FIX 0
+#define NEO8M_REQUIRE_FIX 0
 
-static_assert(NEO6M_TEST_RX_PIN != NEO6M_TEST_TX_PIN,
+static_assert(NEO8M_TEST_RX_PIN != NEO8M_TEST_TX_PIN,
               "Les broches RX et TX doivent etre differentes.");
 
-static HardwareSerial neo6mSerial(2);
+static HardwareSerial neo8mSerial(2);
 static TinyGPSPlus gps;
 
 struct TestCounters
@@ -98,26 +98,26 @@ static void acquireGPSData()
     const unsigned long startedAt = millis();
     unsigned long lastProgressAt = startedAt;
 
-    while (millis() - startedAt < NEO6M_TEST_DURATION_MS)
+    while (millis() - startedAt < NEO8M_TEST_DURATION_MS)
     {
-        while (neo6mSerial.available() > 0)
+        while (neo8mSerial.available() > 0)
         {
             const char character =
-                static_cast<char>(neo6mSerial.read());
+                static_cast<char>(neo8mSerial.read());
 
             receivedBytes++;
             gps.encode(character);
 
-#if NEO6M_ECHO_NMEA
+#if NEO8M_ECHO_NMEA
             Serial.write(character);
 #endif
         }
 
         const unsigned long now = millis();
 
-        if (now - lastProgressAt >= NEO6M_PROGRESS_INTERVAL_MS)
+        if (now - lastProgressAt >= NEO8M_PROGRESS_INTERVAL_MS)
         {
-#if NEO6M_ECHO_NMEA
+#if NEO8M_ECHO_NMEA
             Serial.println();
 #endif
             printProgress(now - startedAt);
@@ -129,15 +129,15 @@ static void acquireGPSData()
     }
 
     // Traite les derniers octets deja presents dans le tampon UART.
-    while (neo6mSerial.available() > 0)
+    while (neo8mSerial.available() > 0)
     {
         const char character =
-            static_cast<char>(neo6mSerial.read());
+            static_cast<char>(neo8mSerial.read());
 
         receivedBytes++;
         gps.encode(character);
 
-#if NEO6M_ECHO_NMEA
+#if NEO8M_ECHO_NMEA
         Serial.write(character);
 #endif
     }
@@ -170,7 +170,7 @@ static void testCommunication()
 
     check(
         "Flux NMEA suffisamment long",
-        gps.charsProcessed() >= NEO6M_MINIMUM_CHARACTERS,
+        gps.charsProcessed() >= NEO8M_MINIMUM_CHARACTERS,
         "Trop peu de caracteres : verifier le debit GPS (9600 bauds)"
     );
 
@@ -201,7 +201,7 @@ static void testNavigationData()
 {
     if (!gps.location.isValid())
     {
-#if NEO6M_REQUIRE_FIX
+#if NEO8M_REQUIRE_FIX
         reportFail(
             "Obtention d'un FIX GPS",
             "Aucun FIX pendant le delai : placer l'antenne sous un ciel degage"
@@ -308,27 +308,27 @@ static void printSummary()
 
 void setup()
 {
-    Serial.begin(NEO6M_TEST_SERIAL_BAUD);
+    Serial.begin(NEO8M_TEST_SERIAL_BAUD);
     delay(1000);
 
     Serial.println();
-    Serial.println("=== TEST MODULE GPS NEO-6M ===");
+    Serial.println("=== TEST MODULE GPS NEO-8M ===");
     Serial.print("RX ESP32 GPIO : ");
-    Serial.println(NEO6M_TEST_RX_PIN);
+    Serial.println(NEO8M_TEST_RX_PIN);
     Serial.print("TX ESP32 GPIO : ");
-    Serial.println(NEO6M_TEST_TX_PIN);
+    Serial.println(NEO8M_TEST_TX_PIN);
     Serial.print("Debit GPS      : ");
-    Serial.println(NEO6M_TEST_GPS_BAUD);
+    Serial.println(NEO8M_TEST_GPS_BAUD);
     Serial.print("Duree du test  : ");
-    Serial.print(NEO6M_TEST_DURATION_MS / 1000UL);
+    Serial.print(NEO8M_TEST_DURATION_MS / 1000UL);
     Serial.println(" s");
     Serial.println();
 
-    neo6mSerial.begin(
-        NEO6M_TEST_GPS_BAUD,
+    neo8mSerial.begin(
+        NEO8M_TEST_GPS_BAUD,
         SERIAL_8N1,
-        NEO6M_TEST_RX_PIN,
-        NEO6M_TEST_TX_PIN
+        NEO8M_TEST_RX_PIN,
+        NEO8M_TEST_TX_PIN
     );
 
     Serial.println("[TEST] Acquisition des donnees GPS...");

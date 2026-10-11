@@ -49,8 +49,7 @@ public:
 NvsStore store;
 UartIo io;
 djua::D2Journal journal(store, espHmac);
-djua::GsmEngine modem(io, GSM_COMMAND_TIMEOUT_MS, GSM_SUBMIT_TIMEOUT_MS, GSM_RETRY_INTERVAL_MS,
-    IOT_HARDWARE_V2 ? djua::GsmModel::A7670 : djua::GsmModel::Sim800);
+djua::GsmEngine modem(io, GSM_COMMAND_TIMEOUT_MS, GSM_SUBMIT_TIMEOUT_MS, GSM_RETRY_INTERVAL_MS);
 djua::SmsScheduler scheduler(journal, modem, GSM_RETRY_INTERVAL_MS, SMS_RETRY_MAX_MS);
 bool healthy = false, queueFault = false;
 djua::GsmStartup startup(GSM_POWER_STABILIZE_MS, GSM_PWRKEY_PULSE_MS, GSM_BOOT_WAIT_MS);
@@ -63,8 +62,7 @@ djua::GsmFault lastModemFault = djua::GsmFault::None;
 constexpr bool occupiedPin(int pin) {
     return pin == GPS_RX_PIN || pin == GPS_TX_PIN || pin == I2C_SDA_PIN || pin == I2C_SCL_PIN ||
         pin == DS1302_DATA_PIN || pin == DS1302_CLOCK_PIN || pin == DS1302_CE_PIN ||
-        (IOT_HARDWARE_V2 ? (pin == PZEM_RX_PIN || pin == PZEM_TX_PIN) :
-         (pin == ZMPT101B_ADC_PIN || pin == ACS712_ADC_PIN)) || pin == LED_SYSTEM_PIN ||
+        (pin == PZEM_RX_PIN || pin == PZEM_TX_PIN) || pin == LED_SYSTEM_PIN ||
         pin == LED_COMM_PIN || pin == LED_ALERT_PIN || pin == BUZZER_PIN;
 }
 constexpr bool uartPin(int pin, bool tx) {

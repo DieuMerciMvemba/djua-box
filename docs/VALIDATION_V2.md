@@ -7,8 +7,7 @@ les scripts de tests. Ne pas effacer la NVS lors d'une mise à jour.
 ## Configuration et câblage
 
 Voir [audit et tableau de brochage](REFONTE_PHASE0.md), [contrat D3](SMS_D3.md).
-Le profil matériel par défaut est V2. Les anciens pilotes sont exclus de sa
-compilation ; `IOT_HARDWARE_V2=0` est réservé aux bancs du matériel historique.
+Le firmware compile uniquement les pilotes V2, quel que soit le transport.
 EspSoftwareSerial **8.1.0** est installé ; Arduino ESP32 local **3.3.12** et
 ArduinoJson **7** sont utilisés. Console UART0, A7670 UART1 RX32/TX13, NEO-8M
 UART2 RX16/TX17 ; PZEM UART logiciel RX35/TX14 à 9600 8N1. Aucune interface
@@ -36,8 +35,8 @@ Ces paramètres ne constituent pas une validation de la capacité physique.
 ## 1. I²C et shunts — sans charge, puis charge de référence
 
 1. Déconnecter les périphériques puis connecter chacun séparément. Vérifier les
-   straps : BAT 0x40, SOL 0x41, INA3221 0x42, TV 0x44. Le scanner historique
-   `TEST UNITAIRE/INA219_SOLAR/i2c_scanner` reste utilisable pour ce contrôle.
+   straps : BAT 0x40, SOL 0x41, INA3221 0x42, TV 0x44. Utiliser le scanner
+   `TEST UNITAIRE/I2C/i2c_scanner` pour ce contrôle.
 2. Ne connecter ensemble que des adresses différentes. Le firmware refuse
    les conflits de configuration ; un scanner ne peut pas distinguer deux circuits
    physiques répondant à la même adresse.
@@ -92,15 +91,14 @@ isolation/protections secteur avant connexion à l'ESP32.
    casse la série de confirmations, sans changer le dernier état confirmé.
 5. Vérifier l'heure DS1302 locale GMT+1 et sa conversion UTC. Enlever la pile ou
    provoquer une date invalide. En SMS production, l'initialisation à la date de
-   compilation est désactivée. Les profils de test MQTT/HTTP conservent l'ancien
+   compilation est désactivée. Les profils de test MQTT/HTTP ont
    `RTC_AUTO_INITIALIZE_IF_INVALID=1` : le forcer à **0** pour ce contrôle réel.
    Une heure de compilation utilisée au banc ne constitue pas une heure réelle validée.
 
 ## 4. A7670, réseau et SMS
 
 1. Confirmer variante de carte, alimentation, niveaux UART, baud, logique PWRKEY
-   et comportement après reset ESP32 avec modem déjà alimenté. Les validations
-   anciennes SIM800C ne s'appliquent pas à l'A7670. PWRKEY GPIO14 est interdit
+   et comportement après reset ESP32 avec modem déjà alimenté. PWRKEY GPIO14 est interdit
    car occupé par le PZEM ; un GPIO distinct confirmé est nécessaire.
 2. Banc manuel : `TEST UNITAIRE/A7670/a7670_at_test`. Il n'envoie aucun SMS
    automatiquement. Moniteur avec fin CR : `AT`, `ATI`, `AT+CGMR`, `AT+CPIN?`,
@@ -110,8 +108,7 @@ isolation/protections secteur avant connexion à l'ESP32.
    GNSS intégré ni appel automatique au service LBS n'est envoyé.
 4. Provisionner uniquement si `djua_d2` est vierge, avec la vraie identité/clé
    déjà autorisée au récepteur. Garder clé/numéro privés hors du dépôt. La console
-   locale est temporaire ; recompiler ensuite sans provisionnement. Ne pas utiliser
-   le banc SIM800 historique comme validation A7670.
+   locale est temporaire ; recompiler ensuite sans provisionnement.
 5. Adapter le récepteur au [contrat D3](SMS_D3.md), puis seulement activer D3.
    Vérifier prompt `>`, `+CMGS`, `OK`, réception des deux séquences, HMAC, assemblage,
    données et complétude au récepteur. `+CMGS` seul ne prouve pas la réception.
@@ -124,7 +121,6 @@ isolation/protections secteur avant connexion à l'ESP32.
 ```powershell
 python tests/refonte/run_tests.py
 python tests/sms/run_tests.py
-python tests/dc_load/run_tests.py
 python -m unittest discover -s "TEST UNITAIRE/SMS" -p test_provision_bench.py -v
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/sms/compile_profiles.ps1
 # Depuis le dossier api, dans l'environnement du dépôt :
@@ -133,8 +129,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/sms/compile_profil
 
 Les profils MQTT_TEST/HTTP_TEST sérialisent le JSON V3 : quatre `dc_ports`,
 diagnostics, énergies complètes ou null et précision inconnue null. Ils restent
-exclusifs du transport SMS. Les fonctions historiques sont conservées pour les
-fixtures du matériel précédent. Aucun backend HTTP externe n'a été modifié :
+exclusifs du transport SMS et utilisent la même architecture matérielle.
+Aucun backend HTTP externe n'a été modifié :
 sa prise en charge du nouveau JSON doit être validée séparément avant usage réel.
 
 Reste à valider au matériel : exactitude, thermiques, protections/isolations,

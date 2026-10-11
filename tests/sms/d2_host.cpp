@@ -49,8 +49,12 @@ static void provision(D2Journal& journal) {
 }
 static void ready(GsmEngine& gsm, FakeUart& io, uint32_t now = 0) {
     gsm.begin(true, now); gsm.update(now);
-    for (int i = 0; i < 8; ++i) {
-        io.feed(i == 3 ? "+CPIN: READY\r\nOK\r\n" : i == 4 ? "+CREG: 0,1\r\nOK\r\n" : "OK\r\n");
+    for (int i = 0; i < 11; ++i) {
+        io.feed(i == 3 ? "+CPIN: READY\r\nOK\r\n" :
+                i == 4 ? "+CEREG: 0,1\r\nOK\r\n" :
+                i == 5 ? "+CREG: 0,1\r\nOK\r\n" :
+                i == 6 ? "+CSMS: 0,1,1,1\r\nOK\r\n" :
+                i == 7 ? "+CSCA: \"+243810000000\",145\r\nOK\r\n" : "OK\r\n");
         gsm.update(now);
     }
     assert(gsm.ready() && gsm.registered());
@@ -242,18 +246,18 @@ static void modemTests() {
     io.feed(">\r\n+CMS ERROR: 500\r\n"); gsm.update(21); assert(gsm.takeResult() == GsmResult::Failed);
     ready(gsm, io, UINT32_MAX - 1000);
     assert(gsm.submit("+243810000001", "D2E,A,1,-,0,GX,-,-,-,00,-", UINT32_MAX - 1000));
-    gsm.update(4000); assert(gsm.takeResult() == GsmResult::Failed); // timeout au wrap
+    gsm.update(9000); assert(gsm.takeResult() == GsmResult::Failed); // timeout au wrap
     ready(gsm, io);
     assert(gsm.submit("+243810000001", "D2E,A,1,-,0,GX,-,-,-,00,-", 1));
     io.feed(">\r\nOK\r\n"); gsm.update(2); assert(gsm.takeResult() == GsmResult::Failed); // OK seul insuffisant
     ready(gsm, io); assert(gsm.submit("+243810000001", "D2E,A,1,-,0,GX,-,-,-,00,-", 1));
-    io.feed(">"); gsm.update(2); gsm.update(60002); assert(gsm.takeResult() == GsmResult::Failed);
+    io.feed(">"); gsm.update(2); gsm.update(120002); assert(gsm.takeResult() == GsmResult::Failed);
     FakeUart noSim; GsmEngine locked(noSim); locked.begin(true, 0); locked.update(0);
     for (int i = 0; i < 4; ++i) { noSim.feed(i == 3 ? "+CPIN: SIM PIN\r\nOK\r\n" : "OK\r\n"); locked.update(0); }
     assert(!locked.ready() && !locked.registered());
     FakeUart noNetwork; GsmEngine searching(noNetwork); searching.begin(true, 0); searching.update(0);
-    for (int i = 0; i < 5; ++i) {
-        noNetwork.feed(i == 3 ? "+CPIN: READY\r\nOK\r\n" : i == 4 ? "+CREG: 0,2\r\nOK\r\n" : "OK\r\n");
+    for (int i = 0; i < 6; ++i) {
+        noNetwork.feed(i == 3 ? "+CPIN: READY\r\nOK\r\n" : i == 4 ? "+CEREG: 0,2\r\nOK\r\n" : i == 5 ? "+CREG: 0,2\r\nOK\r\n" : "OK\r\n");
         searching.update(0);
     }
     assert(!searching.ready());
@@ -263,8 +267,8 @@ static void modemTests() {
     assert(io.tx.find("TEST_TAG_00") != std::string::npos); // '_' ASCII via IRA
     io.feed("\r\n+CMGS: 1\r\nOK\r\n"); gsm.update(3); gsm.takeResult();
     io.feed("+CREG: 5,\"0001\",\"0002\"\r\n"); gsm.update(4); assert(gsm.registered());
-    io.feed("+CREG: 0\r\n"); gsm.update(5); assert(!gsm.ready());
-    io.feed("+CREG: 0,5\r\nOK\r\n"); gsm.update(6); assert(gsm.ready());
+    io.feed("+CEREG: 0\r\n+CREG: 0\r\n"); gsm.update(5); assert(!gsm.ready());
+    io.feed("+CEREG: 0,5\r\nOK\r\n+CREG: 0,5\r\nOK\r\n+CSMS: 0,1,1,1\r\nOK\r\n+CSCA: \"+243810000000\",145\r\nOK\r\n"); gsm.update(6); assert(gsm.ready());
     io.failWrites = true;
     assert(gsm.submit("+243810000001", "D2E,A,1,-,0,GX,-,-,-,00,-", 7));
     assert(gsm.takeResult() == GsmResult::Failed && gsm.fault() == GsmFault::WriteError);
@@ -290,7 +294,7 @@ static void schedulerTests() {
     // The periodic D2T2 is next; a submit timeout must preserve it byte for byte.
     nextIo.feed(">"); next.update(2);
     assert(nextIo.tx.find(periodic) != std::string::npos);
-    next.update(60002); assert(next.takeResult() == GsmResult::Failed);
+    next.update(120002); assert(next.takeResult() == GsmResult::Failed);
     D2Journal retryPeriodic(memory, hostHmac); retryPeriodic.begin();
     assert(retryPeriodic.count() == 1 && periodic == retryPeriodic.at(0)->text);
     assert(SmsScheduler::retryDelay(1) == 30000 && SmsScheduler::retryDelay(UINT32_MAX) == 900000);

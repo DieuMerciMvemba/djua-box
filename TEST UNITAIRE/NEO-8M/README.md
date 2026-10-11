@@ -1,12 +1,12 @@
-# Test du module GPS NEO-6M
+# Test du module GPS NEO-8M
 
-Ce test vérifie un module GPS NEO-6M directement sur un ESP32. Il est autonome et utilise le même port série, le même brochage et le même débit que le firmware principal.
+Ce test vérifie un module GPS NEO-8M directement sur un ESP32. Il est autonome et utilise le même port série, le même brochage et le même débit que le firmware principal.
 
 > Ce sketch est un test matériel du module. Il doit être téléversé séparément du firmware principal.
 
 ## Contenu
 
-- [`neo6m_test/neo6m_test.ino`](neo6m_test/neo6m_test.ino) : sketch autonome avec rapport série `PASS`, `FAIL` et `SKIP`.
+- [`neo8m_test/neo8m_test.ino`](neo8m_test/neo8m_test.ino) : sketch autonome avec rapport série `PASS`, `FAIL` et `SKIP`.
 
 ## Dépendance
 
@@ -16,14 +16,14 @@ Documentation officielle : <https://github.com/mikalhart/TinyGPSPlus>
 
 ## Câblage de test
 
-| NEO-6M | ESP32 |
+| NEO-8M | ESP32 |
 | --- | --- |
 | `GND` | `GND` |
 | `TX` | GPIO 16 (`RX2`) |
 | `RX` | GPIO 17 (`TX2`, optionnel pour ce test en lecture seule) |
 | `VCC` | Alimentation prévue par la carte GPS utilisée |
 
-Le test lit uniquement les données émises par le GPS. La liaison indispensable est donc `TX` du NEO-6M vers GPIO 16 de l’ESP32, avec une masse commune. Vérifier la tension acceptée par la carte GPS : le module NEO-6M lui-même et les entrées de l’ESP32 utilisent une logique 3,3 V. Ne jamais appliquer directement un signal logique de 5 V à l’ESP32.
+Le test lit uniquement les données émises par le GPS. La liaison indispensable est donc `TX` du NEO-8M vers GPIO 16 de l’ESP32, avec une masse commune. Vérifier la tension acceptée par la carte GPS : le module NEO-8M lui-même et les entrées de l’ESP32 utilisent une logique 3,3 V. Ne jamais appliquer directement un signal logique de 5 V à l’ESP32.
 
 ## Contrôles effectués
 
@@ -43,26 +43,26 @@ L’absence de FIX est signalée par `SKIP` par défaut, car une antenne placée
 Pour exiger un FIX et transformer son absence en échec, remplacer dans le sketch :
 
 ```cpp
-#define NEO6M_REQUIRE_FIX 0
+#define NEO8M_REQUIRE_FIX 0
 ```
 
 par :
 
 ```cpp
-#define NEO6M_REQUIRE_FIX 1
+#define NEO8M_REQUIRE_FIX 1
 ```
 
-Effectuer alors le test dehors, antenne céramique orientée vers le ciel. Un premier démarrage à froid peut nécessiter plusieurs minutes ; augmenter `NEO6M_TEST_DURATION_MS` si nécessaire.
+Effectuer alors le test dehors, antenne céramique orientée vers le ciel. Un premier démarrage à froid peut nécessiter plusieurs minutes ; augmenter `NEO8M_TEST_DURATION_MS` si nécessaire.
 
 Pour afficher également les trames NMEA brutes dans le moniteur série, activer :
 
 ```cpp
-#define NEO6M_ECHO_NMEA 1
+#define NEO8M_ECHO_NMEA 1
 ```
 
 ## Exécution
 
-1. Ouvrir `neo6m_test/neo6m_test.ino` dans l’IDE Arduino.
+1. Ouvrir `neo8m_test/neo8m_test.ino` dans l’IDE Arduino.
 2. Sélectionner la carte ESP32 et son port série.
 3. Installer `TinyGPSPlus` si nécessaire.
 4. Téléverser le sketch.

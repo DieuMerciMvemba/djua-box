@@ -20,7 +20,7 @@ uint32_t lastHttpSuccess = 0;
 AlertIndicatorState lastAlert = ALERT_NONE;
 
 static_assert(SENSOR_WARNING_FAILURE_COUNT > 0 &&
-              INA219_CRITICAL_FAILURE_COUNT > 0 &&
+              BATTERY_SENSOR_CRITICAL_FAILURE_COUNT > 0 &&
               TELEMETRY_WARNING_FAILURE_COUNT > 0, "Seuils de compteurs invalides");
 #if BATTERY_ALERTS_ENABLED
 static_assert(BATTERY_CRITICAL_V > 0 && BATTERY_WARNING_V > BATTERY_CRITICAL_V,
@@ -34,14 +34,13 @@ void countFailure(uint32_t& counter, bool failed) {
 
 void refreshAlert(bool announce = true) {
     const bool powerWarning = powerFailures >= SENSOR_WARNING_FAILURE_COUNT;
-    const bool acWarning = (IOT_HARDWARE_V2 ? PZEM_HARDWARE_CONFIGURED : AC_MEASUREMENT_ENABLED) && acFailures >= SENSOR_WARNING_FAILURE_COUNT;
-    const bool solarWarning = (IOT_HARDWARE_V2 ? V2_SOLAR_CONFIGURED : SOLAR_MEASUREMENT_ENABLED) &&
+    const bool acWarning = PZEM_HARDWARE_CONFIGURED && acFailures >= SENSOR_WARNING_FAILURE_COUNT;
+    const bool solarWarning = V2_SOLAR_CONFIGURED &&
         (solarFailures >= SENSOR_WARNING_FAILURE_COUNT ||
          solarUnavailable >= SENSOR_WARNING_FAILURE_COUNT);
-    const bool critical = powerUnavailable >= INA219_CRITICAL_FAILURE_COUNT ||
+    const bool critical = powerUnavailable >= BATTERY_SENSOR_CRITICAL_FAILURE_COUNT ||
                           (powerWarning && acWarning) || batteryCritical;
-    const bool dcWarning = (IOT_HARDWARE_V2 ? (V2_DC_CONFIGURED || V2_TV_CONFIGURED) :
-        (DC_LOAD_MEASUREMENT_ENABLED && DC_LOAD_SHUNT_CONFIGURED)) &&
+    const bool dcWarning = (V2_DC_CONFIGURED || V2_TV_CONFIGURED) &&
         (dcFailures >= SENSOR_WARNING_FAILURE_COUNT || dcUnavailable >= SENSOR_WARNING_FAILURE_COUNT);
     const bool warning = rtcInvalid || powerWarning || acWarning || solarWarning || dcWarning || batteryWarning ||
                          mqttWarning || smsWarning || telemetryFailures >= TELEMETRY_WARNING_FAILURE_COUNT;
@@ -95,44 +94,6 @@ void recordV2SensorStatus(const bool sensorPresent[6], const bool valid[6], bool
 #endif
     refreshAlert();
 }
-void recordSolarStatus(bool solarAvailable, bool solarValid, bool deferAlertRefresh) {
-    countFailure(solarFailures, SOLAR_MEASUREMENT_ENABLED && !solarValid);
-    countFailure(solarUnavailable, SOLAR_MEASUREMENT_ENABLED && !solarAvailable);
-    if (SOLAR_MEASUREMENT_ENABLED && (!solarAvailable || !solarValid))
-        Serial.printf("[SOLAR STATUS] echecs=%lu | indisponible=%lu\n",
-                      static_cast<unsigned long>(solarFailures),
-                      static_cast<unsigned long>(solarUnavailable));
-    if (!deferAlertRefresh) refreshAlert();
-}
-
-void recordDcLoadStatus(bool sensorAvailable, bool valid, bool deferAlertRefresh) {
-    const bool enabled = DC_LOAD_MEASUREMENT_ENABLED && DC_LOAD_SHUNT_CONFIGURED;
-    countFailure(dcFailures, enabled && !valid);
-    countFailure(dcUnavailable, enabled && !sensorAvailable);
-    if (enabled && (!sensorAvailable || !valid))
-        Serial.printf("[DC STATUS] echecs=%lu | indisponible=%lu\n",
-            static_cast<unsigned long>(dcFailures), static_cast<unsigned long>(dcUnavailable));
-    if (!deferAlertRefresh) refreshAlert();
-}
-
-void recordSensorStatus(bool powerAvailable, bool powerValid, bool acValid,
-                        bool rtcValid, float batteryVoltage) {
-    countFailure(powerFailures, !powerValid);
-    countFailure(powerUnavailable, !powerAvailable);
-    countFailure(acFailures, AC_MEASUREMENT_ENABLED && !acValid);
-    rtcInvalid = !rtcValid;
-#if BATTERY_ALERTS_ENABLED
-    // Une mesure invalide ne peut ni declencher ni effacer un seuil metier.
-    if (powerValid) {
-        batteryWarning = batteryVoltage <= BATTERY_WARNING_V;
-        batteryCritical = batteryVoltage <= BATTERY_CRITICAL_V;
-    }
-#else
-    (void)batteryVoltage;
-#endif
-    refreshAlert();
-}
-
 void recordGeofenceStatus(bool exitEvent, bool enterEvent) {
     if (exitEvent && !geofenceAlarmActive) {
         geofenceAlarmActive = true;

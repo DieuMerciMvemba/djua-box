@@ -33,7 +33,8 @@ D2Error encodeD2(const D2Frame& frame, const uint8_t* key, bool requireAuth,
 D2Error decodeD2(const char* sms, const uint8_t* key, bool requireAuth,
                  D2Hmac hmac, D2Frame& frame);
 // D2T is retained only for conformance and reading immutable legacy NVS entries.
-// Newly queued telemetry always uses D2T2; events keep D2E.
+// D2T2 remains available for conformance and persisted entries.
+// Production telemetry uses D3; geofence events keep D2E.
 constexpr size_t D2T2_PAYLOAD_BYTES = 60;
 D2Error packD2T2(const D2Frame& frame, uint8_t output[D2T2_PAYLOAD_BYTES]);
 D2Error encodeD2T2(const D2Frame& frame, const uint8_t* key, bool requireAuth,

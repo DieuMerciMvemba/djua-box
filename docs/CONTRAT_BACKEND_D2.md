@@ -38,7 +38,7 @@ l'idempotence durable ni le stockage de production décrits ci-dessous.
 Capteurs / geofence
 → ESP32 : mesures, fenêtre énergétique, séquence, HMAC, file NVS
 → SMS D2T ou D2E
-→ SIM868 / DJUA_SMS : validation, HMAC, association expéditeur/appareil
+→ passerelle SMS / DJUA_SMS : validation, HMAC, association expéditeur/appareil
 → SQLite : ingestion durable, déduplication, outbox
 → MQTT : JSON normalisé
 → backend : validation JSON, idempotence, persistance, traitements métier
@@ -321,7 +321,7 @@ réservations consomment aussi des séquences.
 | Observation | Ce qu'elle confirme | Ce qu'elle ne confirme pas |
 | --- | --- | --- |
 | Mise en file NVS | SMS créé durablement sur la box | Transmission opérateur |
-| `+CMGS` puis `OK` | Acceptation par le modem | Réception SIM868 ou backend |
+| `+CMGS` puis `OK` | Acceptation par le modem | Réception passerelle SMS ou backend |
 | Commit SQLite DJUA_SMS | Ingestion durable locale | Publication MQTT ou traitement backend |
 | `PUBACK` / outbox `PUBLISHED` | Accusé du broker | Persistance/traitement métier backend |
 | Commit métier backend | Traitement durable côté backend | Accusé retourné à la box |
@@ -392,7 +392,7 @@ signification des signes ou convention d'absence silencieusement.
 | D2E ancien reçu après D2E récent | Historique conservé, dernier état non rétrogradé |
 | Coupure broker/backend | Reprise testée avec configuration de session réelle |
 | Production non vérifiée / topic incohérent | Rejet ou quarantaine explicite |
-| Vrais SMS, SIM868, underscores des tags | Réception exacte, validation HMAC réussie |
+| Vrais SMS, passerelle SMS, underscores des tags | Réception exacte, validation HMAC réussie |
 
 À la rédaction, l'API locale s'abonne en QoS 0, stocke en RAM, n'impose pas
 l'unicité de `message_id` et ne valide pas ce schéma D2. Ses tests historiques

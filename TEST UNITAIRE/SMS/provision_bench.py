@@ -92,7 +92,7 @@ def import_key(port, command: bytearray, timeout: float = 20) -> None:
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--port", required=True, help="ESP32 USB port, NOT SIM868 COM16")
+    parser.add_argument("--port", required=True, help="ESP32 USB port for local provisioning")
     parser.add_argument("--receiver-config", type=Path,
                         default=Path(r"C:\Users\Dell\Desktop\DJUA_SMS\config\gateway.env"))
     args = parser.parse_args(argv)

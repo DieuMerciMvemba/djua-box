@@ -126,54 +126,7 @@ bool sendTelemetryToMQTT(const TelemetryData& data)
     }
 
     JsonDocument doc;
-    doc["kit_id"] = DEVICE_ID;
-
-    if (data.timestampValid)
-    {
-        doc["timestamp"] = data.timestamp;
-        doc["timezone"] = RTC_TIMEZONE_LABEL;
-    }
-
-    doc["interval_seconds"] = data.intervalSeconds;
-    doc["latitude"] = data.latitude;
-    doc["longitude"] = data.longitude;
-
-    JsonObject battery = doc.createNestedObject("battery");
-    battery["voltage_v"] = data.batteryVoltage;
-    battery["current_a"] = data.batteryCurrent;
-    battery["power_w"] = data.batteryPower;
-
-    JsonObject solar = doc.createNestedObject("solar");
-    solar["voltage_v"] = data.solarVoltage;
-    solar["current_a"] = data.solarCurrent;
-    solar["power_w"] = data.solarPower;
-    solar["energy_interval_wh"] = data.solarEnergyIntervalWh;
-    if (!data.solarMeasurementValid)
-    {
-        solar["voltage_v"] = nullptr;
-        solar["current_a"] = nullptr;
-        solar["power_w"] = nullptr;
-        solar["energy_interval_wh"] = nullptr;
-    }
-
-    JsonObject acLoad = doc.createNestedObject("ac_load");
-    acLoad["voltage_v"] = data.acLoadVoltage;
-    acLoad["current_a"] = data.acLoadCurrent;
-    acLoad["active_power_w"] = data.acActivePower;
-    acLoad["apparent_power_va"] = data.acApparentPower;
-    acLoad["energy_interval_wh"] = data.acEnergyIntervalWh;
-
-    JsonObject dcLoad = doc.createNestedObject("dc_load");
-    dcLoad["voltage_v"] = data.dcLoadVoltage;
-    dcLoad["current_a"] = data.dcLoadCurrent;
-    dcLoad["power_w"] = data.dcLoadPower;
-    dcLoad["energy_interval_wh"] = data.dcLoadEnergyIntervalWh;
-    if (!data.dcLoadMeasurementValid) {
-        dcLoad["voltage_v"] = nullptr; dcLoad["current_a"] = nullptr; dcLoad["power_w"] = nullptr;
-    }
-    if (!data.dcLoadEnergyComplete) dcLoad["energy_interval_wh"] = nullptr;
-
-    if (data.v3Present) telemetryJsonV3(doc, data);
+    telemetryJsonV3(doc, data);
     if (doc.overflowed()) { Serial.println("[MQTT] Capacite JSON depassee"); return false; }
     char payload[3072];
     size_t payloadSize = serializeJson(doc, payload, sizeof(payload));

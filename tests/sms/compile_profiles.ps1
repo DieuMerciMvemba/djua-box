@@ -1,7 +1,8 @@
 param(
     [string]$ArduinoCli = (Join-Path $env:LOCALAPPDATA 'Programs\Arduino IDE\resources\app\lib\backend\resources\arduino-cli.exe'),
     [switch]$SkipDefaultSMS,
-    [string[]]$OnlyProfile = @()
+    [string[]]$OnlyProfile = @(),
+    [ValidateRange(1, 8)][int]$Jobs = 2
 )
 $ErrorActionPreference = 'Stop'
 $projectPath = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
@@ -13,8 +14,7 @@ $profiles = @(
     @{ Name = 'HTTP_TEST'; Profile = 3; Defines = '' },
     # Compilation uniquement : PWRKEY et shunts restent des fixtures.
     @{ Name = 'SMS_UART_PROVISIONING_COMPILE_ONLY'; Profile = 1; Defines = "#define GSM_HARDWARE_CONFIGURED 1`n#define D2_PROVISIONING_ENABLED 1`n#define V2_BATTERY_CONFIGURED 1`n#define V2_SOLAR_CONFIGURED 1`n#define V2_DC_CONFIGURED 1`n#define V2_TV_CONFIGURED 1`n#define PZEM_HARDWARE_CONFIGURED 1`n#define D3_RECEIVER_ENABLED 1`n" },
-    @{ Name = 'SMS_DC_DISABLED'; Profile = 1; Defines = "#define V2_DC_CONFIGURED 0`n#define V2_TV_CONFIGURED 0`n" },
-    @{ Name = 'SMS_LEGACY_HARDWARE'; Profile = 1; Defines = "#define IOT_HARDWARE_V2 0`n" }
+    @{ Name = 'SMS_DC_DISABLED'; Profile = 1; Defines = "#define V2_DC_CONFIGURED 0`n#define V2_TV_CONFIGURED 0`n" }
 )
 try {
     $fixturePath = Join-Path $buildFixtureRoot 'iot_box'
@@ -38,7 +38,7 @@ foreach ($profile in $profiles) {
         $pins = [IO.File]::ReadAllText($pinsFile).Replace('#define GSM_PWRKEY_PIN -1', '#define GSM_PWRKEY_PIN 4')
         [IO.File]::WriteAllText($pinsFile, $pins)
     }
-    & $ArduinoCli compile --fqbn esp32:esp32:esp32 --warnings all --jobs 1 `
+    & $ArduinoCli compile --fqbn esp32:esp32:esp32 --warnings all --jobs $Jobs `
         --build-path (Join-Path $buildFixtureRoot 'build') $fixturePath
     if ($LASTEXITCODE -ne 0) { throw "Compilation echouee : $($profile.Name)" }
 }

@@ -13,7 +13,7 @@ constexpr char RECEIVER[] = "+243852869410";
 constexpr char NVS_NAMESPACE[] = "djua_d2_bench";
 constexpr uint32_t FIRST_SEQUENCE = 5; // 1..4 already used in the manual tests.
 constexpr int MODEM_RX = 32, MODEM_TX = 13;
-constexpr uint32_t MODEM_BAUD = 9600;
+constexpr uint32_t MODEM_BAUD = 115200;
 
 void wipe(void* data, size_t length) {
     volatile uint8_t* p = static_cast<volatile uint8_t*>(data);
@@ -140,7 +140,7 @@ void provision(const char* hex) {
         for (size_t i = 0; i < 32; ++i) mismatch |= key[i] ^ journal.identity().key[i];
         ok = mismatch == 0; // Confirm an existing key; never replace it/reset sequence.
     } else if (valid && journal.state() == djua::D2State::Unprovisioned) {
-        ok = journal.provision(DEVICE, key, RECEIVER, "sim800c-hmac-bench", FIRST_SEQUENCE);
+        ok = journal.provision(DEVICE, key, RECEIVER, "a7670-hmac-bench", FIRST_SEQUENCE);
     }
     wipe(key, sizeof(key));
     Serial.println(ok ? "[BENCH] KEY_OK" : "[BENCH] KEY_REFUSED");
@@ -233,7 +233,7 @@ void setup() {
     io.uart.setTxBufferSize(256);
     io.uart.begin(MODEM_BAUD, SERIAL_8N1, MODEM_RX, MODEM_TX);
     bootSince = millis();
-    Serial.printf("\n[BENCH] SIM800C RX=%d TX=%d baud=%lu; GSM BENCH ONLY.\n",
+    Serial.printf("\n[BENCH] A7670 RX=%d TX=%d baud=%lu; GSM BENCH ONLY.\n",
                   MODEM_RX, MODEM_TX, static_cast<unsigned long>(MODEM_BAUD));
     Serial.println(cryptoOk ? "[BENCH] SELFTEST_OK: official HMAC and tamper rejection." : "[BENCH] SELFTEST_FAIL: sending disabled.");
     Serial.println("[BENCH] No automatic SMS. NVS test namespace only; no erase command.");

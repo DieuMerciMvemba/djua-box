@@ -20,11 +20,6 @@
 #define DS1302_CLOCK_PIN 25
 #define DS1302_CE_PIN 27
 
-// ---------- MESURE CHARGE AC ----------
-// ADC1 reste utilisable pendant que le Wi-Fi de l'ESP32 est actif.
-#define ZMPT101B_ADC_PIN 34
-#define ACS712_ADC_PIN 35
-
 // PZEM-004T 10 A : UART logiciel, distinct de UART0/1/2.
 #ifndef PZEM_RX_PIN
 #define PZEM_RX_PIN 35
@@ -41,7 +36,7 @@
 
 // ---------- A7670 : UART1 RX32 / TX13 (niveaux de carte a verifier) ----------
 // Brochage cible : TXD modem -> RX32, RXD modem -> TX13, masse commune.
-// Le banc precedent validait le SIM800C ; verifier les niveaux de la carte A7670.
+// Verifier les niveaux de la carte A7670.
 // UART2 GPIO16/17 reste au GPS.
 // Aucun PWRKEY n'est suppose par le firmware.
 #ifndef GSM_RX_PIN

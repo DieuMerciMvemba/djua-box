@@ -1,5 +1,4 @@
 #include "config.h"
-#if IOT_HARDWARE_V2
 #include "firmware_v2.h"
 #include "pins.h"
 #include <Arduino.h>
@@ -238,4 +237,3 @@ void loopV2() {
     if (acquiring && collectAcquisition(acquisitionNow)) { acquiring = false; sampleWindow(millis()); }
     updateIndicators();
 }
-#endif

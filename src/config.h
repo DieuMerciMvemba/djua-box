@@ -8,11 +8,6 @@
 //  MONITEUR SERIE 
 #define SERIAL_BAUD_RATE 115200
 
-// Target V2; set 0 only for explicitly legacy hardware benches.
-#ifndef IOT_HARDWARE_V2
-#define IOT_HARDWARE_V2 1
-#endif
-
 // Un seul transport actif. Surcharge possible a la compilation avec -D.
 #define DJUA_PROFILE_SMS_PRODUCTION 1
 #define DJUA_PROFILE_MQTT_TEST 2
@@ -34,21 +29,15 @@
 static_assert(D2_PERIOD_SECONDS >= 10UL && D2_PERIOD_SECONDS <= 86400UL,
               "La periode D2 doit rester entre 10 et 86400 secondes");
 
-// Ancien SIM800C uniquement : carte marquee DC:5V-9V IN ; validation non applicable a l'A7670.
-// Banc UART RX32/TX13 valide par l'utilisateur ; alimentation a dimensionner.
-// UART GSM actif en SMS_PRODUCTION ; carte deja allumee, sans GPIO PWRKEY.
+// A7670 sur UART1 ; alimentation et niveaux de la carte a confirmer.
 #ifndef GSM_HARDWARE_CONFIGURED
-#define GSM_HARDWARE_CONFIGURED (!IOT_HARDWARE_V2)
+#define GSM_HARDWARE_CONFIGURED 0
 #endif
 #ifndef GSM_BAUD_RATE
-#define GSM_BAUD_RATE (IOT_HARDWARE_V2 ? 115200UL : 9600UL)
+#define GSM_BAUD_RATE 115200UL
 #endif
 #ifndef GSM_MODULE_LABEL
-#if IOT_HARDWARE_V2
 #define GSM_MODULE_LABEL "A7670"
-#else
-#define GSM_MODULE_LABEL "SIM800C"
-#endif
 #endif
 // PWRKEY optionnel via transistor : niveau actif cote ESP32, pas cote module.
 #ifndef GSM_PWRKEY_ACTIVE_LEVEL
@@ -57,8 +46,8 @@ static_assert(D2_PERIOD_SECONDS >= 10UL && D2_PERIOD_SECONDS <= 86400UL,
 #define GSM_POWER_STABILIZE_MS 1000UL
 #define GSM_PWRKEY_PULSE_MS 1200UL
 #define GSM_BOOT_WAIT_MS 5000UL
-#define GSM_COMMAND_TIMEOUT_MS (IOT_HARDWARE_V2 ? 10000UL : 5000UL)
-#define GSM_SUBMIT_TIMEOUT_MS (IOT_HARDWARE_V2 ? 120000UL : 60000UL)
+#define GSM_COMMAND_TIMEOUT_MS 10000UL
+#define GSM_SUBMIT_TIMEOUT_MS 120000UL
 #define GSM_RETRY_INTERVAL_MS 30000UL
 #define SMS_RETRY_MAX_MS 900000UL
 static_assert(GSM_COMMAND_TIMEOUT_MS > 0 && GSM_SUBMIT_TIMEOUT_MS > 0 &&
@@ -76,86 +65,15 @@ static_assert(GSM_COMMAND_TIMEOUT_MS > 0 && GSM_SUBMIT_TIMEOUT_MS > 0 &&
 static_assert(BATTERY_CURRENT_POLARITY == 1 || BATTERY_CURRENT_POLARITY == -1,
               "La polarite batterie doit etre 1 ou -1");
 
-//  INA219 BATTERIE 
-#define INA219_I2C_ADDRESS 0x40
-#define INA219_I2C_CLOCK_HZ 100000UL
-#define INA219_SAMPLE_COUNT 7U
-#define INA219_SAMPLE_DELAY_MS 3UL
-// Plage de validite correspondant a la batterie nominale 12 V du boitier.
+// Batterie nominale 12 V : limites de validite, independantes du pilote INA228.
 #define BATTERY_MIN_VALID_V 9.0F
 #define BATTERY_MAX_VALID_V 16.5F
-
-// INA219 SOLAIRE : adresse a confirmer avec le scanner, sur le bus commun.
-#ifndef SOLAR_MEASUREMENT_ENABLED
-#define SOLAR_MEASUREMENT_ENABLED 0
-#endif
-#define SOLAR_INA219_I2C_ADDRESS 0x41
-#define SOLAR_INA219_SAMPLE_COUNT 7U
-#define SOLAR_INA219_SAMPLE_DELAY_MS 3UL
 #ifndef SOLAR_CURRENT_POLARITY
 #define SOLAR_CURRENT_POLARITY 1
 #endif
-static_assert(
-    SOLAR_INA219_I2C_ADDRESS != INA219_I2C_ADDRESS,
-    "INA219 batterie et solaire doivent avoir des adresses differentes."
-);
 
-// Troisieme INA219 : charge DC, shunt EXTERNE. Valeurs exemples, pas un
-// choix materiel valide. Mettre CONFIGURED=1 seulement apres montage/verifications.
-#ifndef DC_LOAD_MEASUREMENT_ENABLED
-#define DC_LOAD_MEASUREMENT_ENABLED 1
-#endif
-#ifndef DC_LOAD_SHUNT_CONFIGURED
-#define DC_LOAD_SHUNT_CONFIGURED 0
-#endif
-#ifndef DC_LOAD_INA219_I2C_ADDRESS
-#define DC_LOAD_INA219_I2C_ADDRESS 0x44
-#endif
-#ifndef DC_LOAD_SHUNT_RATED_A
-#define DC_LOAD_SHUNT_RATED_A 50.0
-#endif
-#ifndef DC_LOAD_SHUNT_RATED_MV
-#define DC_LOAD_SHUNT_RATED_MV 75.0
-#endif
-#ifndef DC_LOAD_MAX_VALID_V
-#define DC_LOAD_MAX_VALID_V 26.0
-#endif
-#ifndef DC_LOAD_CURRENT_POLARITY
-#define DC_LOAD_CURRENT_POLARITY 1
-#endif
-#define DC_LOAD_INA219_SAMPLE_COUNT 7U
-#define DC_LOAD_INA219_SAMPLE_DELAY_MS 3UL
-static_assert(DC_LOAD_INA219_I2C_ADDRESS >= 0x40 && DC_LOAD_INA219_I2C_ADDRESS <= 0x4F &&
-              DC_LOAD_INA219_I2C_ADDRESS != INA219_I2C_ADDRESS &&
-              DC_LOAD_INA219_I2C_ADDRESS != SOLAR_INA219_I2C_ADDRESS,
-              "Les trois INA219 doivent avoir des adresses distinctes");
-static_assert(DC_LOAD_SHUNT_RATED_A > 0 && DC_LOAD_SHUNT_RATED_A <= 100 &&
-              DC_LOAD_SHUNT_RATED_MV > 0 && DC_LOAD_SHUNT_RATED_MV < 320 &&
-              DC_LOAD_MAX_VALID_V > 0 && DC_LOAD_MAX_VALID_V <= 26,
-              "Shunt/plage DC incompatibles avec INA219 ou D2T2");
-static_assert(DC_LOAD_CURRENT_POLARITY == 1 || DC_LOAD_CURRENT_POLARITY == -1,
-              "La polarite DC doit etre 1 ou -1");
-
-//  MESURE CHARGE AC : ZMPT101B + ACS712-30A
-// Chaque sortie 0-5 V doit passer par son propre diviseur 10k/10k avant
-// l'entree ADC ESP32. Les valeurs fines sont ensuite calibrables par USB.
-#define AC_MEASUREMENT_ENABLED 1
-#define ZMPT101B_VOLTAGE_GAIN_V_PER_ADC_MV 1.0000F
-#define ACS712_30A_SENSITIVITY_MV_PER_A 66.0F
-#define AC_OUTPUT_DIVIDER_RATIO 0.5000F
-#define AC_CURRENT_GAIN_A_PER_ADC_MV \
-    (1.0F / (ACS712_30A_SENSITIVITY_MV_PER_A * AC_OUTPUT_DIVIDER_RATIO))
-#define AC_PHASE_CORRECTION_US 0
-#define AC_CURRENT_POLARITY 1
-#define AC_CURRENT_NOISE_FLOOR_A 0.150F
-#define AC_MEASUREMENT_WINDOW_MS 1000UL
-#define AC_SAMPLE_PERIOD_US 300U
-#define AC_MINIMUM_SAMPLE_COUNT 400U
-#define AC_MAXIMUM_SAMPLE_COUNT 4096U
-
-//  GPS NEO-8M (NEO-6M conserve pour les bancs historiques)
+// GPS NEO-8M sur UART2, independant du modem.
 #define GPS_BAUD_RATE 9600
-// Age maximal d'une position utilisable par la telemetrie.
 #define GPS_MAX_AGE_MS 5000UL
 
 // V2 sensor configuration. Enable after checking the physical board, straps,
@@ -282,14 +200,12 @@ static_assert(DC_LOAD_CURRENT_POLARITY == 1 || DC_LOAD_CURRENT_POLARITY == -1,
 #define PZEM_POLL_INTERVAL_MS 2000UL
 #define PZEM_MAX_AGE_MS 5000UL
 #define PZEM_REPLY_TIMEOUT_MS 1000UL
-#if IOT_HARDWARE_V2
 static_assert(V2_BATTERY_ADDRESS != V2_SOLAR_ADDRESS && V2_BATTERY_ADDRESS != V2_TV_ADDRESS &&
     V2_BATTERY_ADDRESS != V2_DC_ADDRESS && V2_SOLAR_ADDRESS != V2_TV_ADDRESS &&
     V2_SOLAR_ADDRESS != V2_DC_ADDRESS && V2_TV_ADDRESS != V2_DC_ADDRESS, "Conflit I2C V2");
 static_assert(BATTERY_MAX_CURRENT_A <= 30 && SOLAR_MAX_CURRENT_A <= 30 && TV_MAX_CURRENT_A <= 30 &&
     DC1_MAX_CURRENT_A <= 30 && DC2_MAX_CURRENT_A <= 30 && DC3_MAX_CURRENT_A <= 30,
     "Courants V2 hors du contrat D3");
-#endif
 
 //  GEOFENCING LOCAL
 #define GEOFENCE_ENABLED 1
@@ -360,7 +276,7 @@ static_assert(BATTERY_MAX_CURRENT_A <= 30 && SOLAR_MAX_CURRENT_A <= 30 && TV_MAX
 
 // Compteurs de cycles de mesure, apres la recuperation propre aux capteurs.
 #define SENSOR_WARNING_FAILURE_COUNT 3U
-#define INA219_CRITICAL_FAILURE_COUNT 3U
+#define BATTERY_SENSOR_CRITICAL_FAILURE_COUNT 3U
 #define TELEMETRY_WARNING_FAILURE_COUNT 3U
 #define MQTT_WARNING_GRACE_MS 30000UL
 #define HTTP_SUCCESS_VALID_MS (3UL * TELEMETRY_INTERVAL_MS)

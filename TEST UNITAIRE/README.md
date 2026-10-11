@@ -1,26 +1,21 @@
-# Tests unitaires et tests de modules
+# Bancs de l'IoT Box V2
 
-Ce dossier contient des tests autonomes. Il est volontairement séparé du firmware principal : aucun fichier présent ici n'est inclus par `iot_box.ino` et les tests ne modifient donc pas le fonctionnement actuel de l'IoT Box.
+Les bancs matériels correspondent aux composants du firmware.
+Leurs sketches se téléversent séparément ; les scripts de compilation
+ne flashent aucune carte.
 
-## Modules couverts
-
-| Module | État |
+| Composant ou fonction | Banc |
 | --- | --- |
-| Indicateurs LED et buzzer | Sketch materiel et tests automatises dans [`INDICATORS`](INDICATORS/README.md) |
-| INA219 solaire | Scanner I2C, sketch solaire et tests automatises dans [`INA219_SOLAR`](INA219_SOLAR/README.md) |
-| INA219 charges DC | Shunt externe configurable, sketch et tests automatisés dans [`INA219_DC`](INA219_DC/README.md) |
-| SMS D2T2 / SIM800C | Banc ESP32 HMAC, provisionnement et retries dans [`SMS`](SMS/README.md) |
-| Horloge RTC DS1302 | Premier test disponible dans [`DS1302`](DS1302/README.md) |
-| GPS NEO-6M | Test matériel disponible dans [`NEO-6M`](NEO-6M/README.md) |
-| Geofencing | Test à coordonnées simulées dans [`GEOFENCE/geofence_test`](GEOFENCE/geofence_test/geofence_test.ino) |
-| ZMPT101B + ACS712-30A | Mesure réelle W/VA/PF et calibration persistante dans [`ZMPT101B_ACS712`](ZMPT101B_ACS712/README.md) |
+| INA228 / INA3221 | Registres, calibration, shunts, conflits et pannes simulés dans [tests/refonte](../tests/refonte/run_tests.py) |
+| Bus I²C | [Scanner des quatre adresses](I2C/i2c_scanner/i2c_scanner.ino) |
+| PZEM-004T V3 10 A | CRC, timeouts, compteur et énergie simulés dans [tests/refonte](../tests/refonte/run_tests.py) ; essai réel dans [le guide](../docs/VALIDATION_V2.md) |
+| A7670 | [Dialogue AT manuel](A7670/a7670_at_test/a7670_at_test.ino) |
+| NEO-8M | [NMEA, fix et fraîcheur](NEO-8M/README.md) |
+| DS1302 | [RTC et pile](DS1302/README.md) |
+| LEDs / buzzer | [Indicateurs et alertes](INDICATORS/README.md) |
+| Geofence | [Tests de la zone](GEOFENCE/geofence_test/geofence_test.ino) |
+| SMS et HMAC | [Banc de conformité avec A7670](SMS/README.md) |
 
-## Organisation retenue
-
-Chaque module possède son propre dossier avec :
-
-- un sketch Arduino autonome contenant sa configuration locale ;
-- les instructions de câblage et d'exécution ;
-- la liste des contrôles effectués.
-
-Les futurs tests de modules pourront être ajoutés ici sans modifier les sources de production.
+Les tests automatisés utilisent des bus et réponses contrôlés. Ils prouvent
+le comportement du code face à ces entrées, pas la précision des mesures,
+le câblage ou la livraison d'un SMS par l'opérateur.

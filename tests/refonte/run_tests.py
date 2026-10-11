@@ -20,7 +20,7 @@ sources = [HERE / "drivers_test.cpp", ROOT / "src/drivers/ina228.cpp",
            ROOT / "src/communication/d2_store.cpp", ROOT / "src/geofencing/geofence.cpp"]
 with tempfile.TemporaryDirectory(prefix="iot-v2-host-") as directory:
     binary = Path(directory) / "drivers_test.exe"
-    command = [compiler, "/nologo", "/std:c++17", "/EHsc", "/W4", "/WX", "/utf-8", "/D_CRT_SECURE_NO_WARNINGS", f"/I{ROOT / 'tests/dc_load'}",
+    command = [compiler, "/nologo", "/std:c++17", "/EHsc", "/W4", "/WX", "/utf-8", "/D_CRT_SECURE_NO_WARNINGS", f"/I{HERE / 'support'}",
                *map(str, sources), f"/Fe:{binary}"]
     result = subprocess.run(command, cwd=directory, env=environment,
                             capture_output=True, text=True, errors="replace")
@@ -68,7 +68,7 @@ with tempfile.TemporaryDirectory(prefix="iot-v2-host-") as directory:
         raise RuntimeError("JSON test requires installed ArduinoJson 7; set ARDUINOJSON_INCLUDE to its src directory.")
     json_binary = Path(directory) / "json_test.exe"
     command = [compiler, "/nologo", "/std:c++17", "/EHsc", "/W4", "/WX", "/utf-8",
-               f"/I{json_library}", f"/I{ROOT / 'tests/dc_load'}", str(HERE / "json_test.cpp"), f"/Fe:{json_binary}"]
+               f"/I{json_library}", f"/I{HERE / 'support'}", str(HERE / "json_test.cpp"), f"/Fe:{json_binary}"]
     result = subprocess.run(command, cwd=directory, env=environment, capture_output=True, text=True, errors="replace")
     print(result.stdout, end="")
     if result.returncode:

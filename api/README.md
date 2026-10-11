@@ -46,7 +46,7 @@ djua/test/DJUA-KIN-000001/geofence/events
 | `WS /ws/geofence` | Calculated geofence states and enter/exit events |
 
 The telemetry record preserves every field emitted by the ESP32: RTC timestamp,
-GPS coordinates, INA219 voltage/current/power, telemetry interval, and the
+GPS coordinates, INA228/INA3221 DC measurements, PZEM AC measurements, telemetry interval, and the
 currently defined solar and AC fields. Geofence records preserve the position,
 distance to the zone, state, transition event, and confirmation calculation.
 
