@@ -9,6 +9,7 @@
 #include "../sensors/ac_power_sensor.h"
 #include "../sensors/gps.h"
 #include "../sensors/rtc_ds1302.h"
+#include "telemetry_v3.h"
 
 // =====================================================
 // IOT BOX - STRUCTURE DE TELEMETRIE
@@ -53,6 +54,8 @@ struct TelemetryData
 
     // Intervalle entre deux transmissions
     unsigned long intervalSeconds;
+    bool v3Present = false;
+    djua::TelemetryV3 v3;
 };
 
 
@@ -66,5 +69,6 @@ TelemetryData buildTelemetry(
     unsigned long intervalSeconds,
     const DcLoadPowerData& dcLoad = DcLoadPowerData{}
 );
+TelemetryData buildV3Telemetry(const djua::TelemetryV3& frame, const RTCData& rtc);
 
 #endif

@@ -1,3 +1,5 @@
+#include "../config.h"
+#if !IOT_HARDWARE_V2
 #include "dc_load_power_sensor.h"
 #include "dc_load_calibration.h"
 #include "../config.h"
@@ -100,3 +102,5 @@ bool isDcLoadPowerSensorAvailable() {
     return false;
 #endif
 }
+
+#endif // legacy sensor, not linked into target V2

@@ -6,6 +6,7 @@
 void initSMS();
 void updateSMS();
 bool enqueueSMS(djua::D2Frame frame);
+bool enqueueSMSV3(djua::TelemetryV3 frame);
 bool isSMSNetworkRegistered();
 bool isSMSConnecting();
 bool isSMSHardwareConfigured();

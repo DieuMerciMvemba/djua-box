@@ -4,6 +4,7 @@
 // valider exactement le code utilise par iot_box.ino sans en maintenir une
 // seconde copie. Arduino ne compile pas automatiquement les .cpp situes en
 // dehors du dossier du sketch.
+#define IOT_HARDWARE_V2 0
 #include "../../../src/sensors/ac_power_sensor.cpp"
 
 constexpr uint32_t TEST_REPORT_INTERVAL_MS = 2000UL;

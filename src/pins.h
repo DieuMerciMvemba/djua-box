@@ -5,11 +5,11 @@
 // IOT BOX - BROCHES ESP32
 // =====================================================
 
-// ---------- INA219 / I2C ----------
+// ---------- INA228 + INA3221 / I2C commun ----------
 #define I2C_SDA_PIN 21
 #define I2C_SCL_PIN 22
 
-// ---------- GPS NEO-6M / UART2 ----------
+// ---------- GPS NEO-8M / UART2 ----------
 
 #define GPS_RX_PIN 16
 #define GPS_TX_PIN 17
@@ -25,15 +25,24 @@
 #define ZMPT101B_ADC_PIN 34
 #define ACS712_ADC_PIN 35
 
+// PZEM-004T 10 A : UART logiciel, distinct de UART0/1/2.
+#ifndef PZEM_RX_PIN
+#define PZEM_RX_PIN 35
+#endif
+#ifndef PZEM_TX_PIN
+#define PZEM_TX_PIN 14
+#endif
+
 // ---------- INDICATION LOCALE DJUA ----------
 #define LED_SYSTEM_PIN 18
 #define LED_COMM_PIN 19
 #define LED_ALERT_PIN 23
 #define BUZZER_PIN 33
 
-// ---------- SIM800C : UART1 RX32 / TX13 ----------
-// Cablage confirme au banc par l'utilisateur : TXD modem -> RX32,
-// RXD modem -> TX13, masse commune. UART2 GPIO16/17 reste au GPS.
+// ---------- A7670 : UART1 RX32 / TX13 (niveaux de carte a verifier) ----------
+// Brochage cible : TXD modem -> RX32, RXD modem -> TX13, masse commune.
+// Le banc precedent validait le SIM800C ; verifier les niveaux de la carte A7670.
+// UART2 GPIO16/17 reste au GPS.
 // Aucun PWRKEY n'est suppose par le firmware.
 #ifndef GSM_RX_PIN
 #define GSM_RX_PIN 32

@@ -40,6 +40,8 @@ D2Error slotError(const ElectricalSlot& s, uint32_t interval, bool ac = false) {
     if (!s.energyComplete && s.energyWh != 0) return D2Error::NonCanonicalAbsent;
     if (s.valid && (!range(s.voltage, 0, ac ? 260 : 85) || !range(s.current, ac ? 0 : -30, ac ? 10 : 30) ||
         !range(s.power, ac ? 0 : -3000, ac ? 2300 : 3000))) return D2Error::OutOfRange;
+    if (s.valid && !ac && fabs(s.power - s.voltage * s.current) > 1 + fabs(s.power) * .02)
+        return D2Error::OutOfRange;
     if (s.energyComplete && !range(s.energyWh, ac ? 0 : -3000.0 * interval / 3600 - 1,
         (ac ? 2300.0 : 3000.0) * interval / 3600 + 1)) return D2Error::OutOfRange;
     return D2Error::Ok;

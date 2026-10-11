@@ -1,6 +1,13 @@
 #include "telemetry.h"
 #include <math.h>
 
+TelemetryData buildV3Telemetry(const djua::TelemetryV3& frame, const RTCData& rtc) {
+    TelemetryData data{}; data.v3Present = true; data.v3 = frame;
+    data.intervalSeconds = frame.interval;
+    data.timestampValid = formatRTCTimestamp(rtc, data.timestamp, sizeof(data.timestamp));
+    return data;
+}
+
 // =====================================================
 // CONSTRUCTION DE LA TELEMETRIE
 // =====================================================

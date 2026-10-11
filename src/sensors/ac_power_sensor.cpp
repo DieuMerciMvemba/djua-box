@@ -1,3 +1,5 @@
+#include "../config.h"
+#if !IOT_HARDWARE_V2
 #include "ac_power_sensor.h"
 
 #include <Preferences.h>
@@ -808,3 +810,5 @@ void updateACPowerCalibrationConsole()
         }
     }
 }
+
+#endif // legacy sensor, not linked into target V2

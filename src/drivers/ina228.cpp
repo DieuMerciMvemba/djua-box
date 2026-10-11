@@ -38,7 +38,10 @@ bool Ina228::start(uint32_t now) {
 }
 ElectricalReading Ina228::read(uint32_t now) {
     ElectricalReading out; out.fault = fault_; out.sampledAt = now;
-    if (!pending_) return out;
+    if (!pending_) {
+        if (out.fault == MeasureFault::None) out.fault = MeasureFault::NotReady;
+        return out;
+    }
     uint32_t diag = 0, calibration = 0, range = 0, shunt = 0, bus = 0, current = 0;
     if (!bus_.read(config_.address, 0x0b, diag)) out.fault = MeasureFault::Io;
     else if (!(diag & 1)) out.fault = MeasureFault::Configuration; // MEMSTAT trim memory

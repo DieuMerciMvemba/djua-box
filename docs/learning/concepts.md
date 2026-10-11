@@ -1,5 +1,43 @@
 # Concepts structurants du projet
 
+## UART logiciel du PZEM
+
+**Rencontré dans :** `src/firmware_v2.cpp`, `src/drivers/pzem004t.cpp`.
+
+**Pourquoi il existe ici :** les trois UART matériels sont occupés.
+EspSoftwareSerial lit le PZEM sur RX35/TX14 en conservant modem, GPS et console.
+
+**À retenir :** les timings CPU et interruptions peuvent provoquer des pertes.
+CRC/timeout invalident les trames corrompues ; l'essai sous trafic simultané reste requis.
+
+**Exemple du projet :** PZEM à 9600 bauds, A7670 UART1, NEO-8M UART2, console UART0.
+
+## Calibration multi-instance et limites physiques
+
+**Rencontré dans :** `src/drivers/ina228.cpp`, `src/drivers/ina3221.cpp`, `src/config.h`.
+
+**Pourquoi il existe ici :** BAT/SOL/TV ont chacun 2,5 mΩ ; DC1/DC2/DC3 ont chacun
+10 mΩ. Un calibre d'un autre shunt donne un courant faux.
+
+**À retenir :** vérifier I×R face au calibre ADC et I²R face à la puissance du
+shunt, puis mesurer le montage réel. La configuration ne prouve pas sa précision.
+
+**Exemple du projet :** 30 A/75 mV dissipe 2,25 W ; ±40,96 mV est refusé à 30 A.
+
+## Atomicité d'une paire et réception partielle
+
+**Rencontré dans :** `D2Journal::enqueueV3()`, `docs/SMS_D3.md`.
+
+**Pourquoi il existe ici :** les nouvelles mesures nécessitent deux SMS. La NVS
+enregistre leurs textes signés ensemble pour la reprise après coupure.
+
+**À retenir :** « deux ajoutés ou aucun » en NVS ne signifie pas « deux reçus ».
+Chaque partie garde sa séquence ; snapshot relie la paire. Les flags d'énergie
+restent indépendants de la réception complète.
+
+**Exemple du projet :** la partie DC peut arriver avant la partie système, ou
+rester seule ; le récepteur doit signaler cette situation.
+
 Ce document décrit seulement les concepts qui organisent réellement le système.
 Il ne constitue ni une preuve de maîtrise ni une documentation ligne par ligne.
 

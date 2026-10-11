@@ -19,12 +19,14 @@ int registrationStatus(const char* data) {
     char* end = nullptr;
     long value = strtol(data, &end, 10);
     if (end == data || value < 0 || value > 10) return -1;
+    if (*end && *end != ',') return -1;
     if (*end == ',') {
         const char* second = end + 1; while (*second == ' ') ++second;
         // Detailed URC has a quoted area identifier, query has numeric <stat>.
         if (*second != '"') {
             value = strtol(second, &end, 10);
             if (end == second || value < 0 || value > 10) return -1;
+            if (*end && *end != ',') return -1;
         }
     }
     return static_cast<int>(value);
@@ -76,6 +78,7 @@ void GsmEngine::line(uint32_t now) {
         smsSupported_ = sscanf(line_ + 6, " %d,%d,%d,%d", &service, &mt, &mo, &bm) == 4 && mo == 1;
     }
     if (model_ == GsmModel::A7670 && !strncmp(line_, "+CSCA:", 6)) {
+        serviceCentre_ = false;
         const char* first = strchr(line_ + 6, '"');
         const char* last = first ? strchr(first + 1, '"') : nullptr;
         char centre[18] = {};

@@ -15,7 +15,7 @@ if not "%errorlevel%"=="0" goto failed
 popd
 exit /b 0
 :variant
-cl /nologo /std:c++17 /EHsc /W4 /I"%~dp0." /DBUZZER_ENABLED=%4 /DSOLAR_MEASUREMENT_ENABLED=%2 /DSOLAR_CURRENT_POLARITY=%3 "%~dp0solar_test.cpp" /Fe:%1.exe /Fo:%1.obj
+cl /nologo /std:c++17 /EHsc /W4 /DIOT_HARDWARE_V2=0 /I"%~dp0." /DBUZZER_ENABLED=%4 /DSOLAR_MEASUREMENT_ENABLED=%2 /DSOLAR_CURRENT_POLARITY=%3 "%~dp0solar_test.cpp" /Fe:%1.exe /Fo:%1.obj
 if not "%errorlevel%"=="0" exit /b 1
 %1.exe
 if not "%errorlevel%"=="0" exit /b 1

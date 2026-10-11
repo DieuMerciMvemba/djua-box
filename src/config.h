@@ -8,6 +8,11 @@
 //  MONITEUR SERIE 
 #define SERIAL_BAUD_RATE 115200
 
+// Target V2; set 0 only for explicitly legacy hardware benches.
+#ifndef IOT_HARDWARE_V2
+#define IOT_HARDWARE_V2 1
+#endif
+
 // Un seul transport actif. Surcharge possible a la compilation avec -D.
 #define DJUA_PROFILE_SMS_PRODUCTION 1
 #define DJUA_PROFILE_MQTT_TEST 2
@@ -29,17 +34,21 @@
 static_assert(D2_PERIOD_SECONDS >= 10UL && D2_PERIOD_SECONDS <= 86400UL,
               "La periode D2 doit rester entre 10 et 86400 secondes");
 
-// SIM800C : carte photographiee marquee DC:5V-9V IN ; entree 5V admise.
+// Ancien SIM800C uniquement : carte marquee DC:5V-9V IN ; validation non applicable a l'A7670.
 // Banc UART RX32/TX13 valide par l'utilisateur ; alimentation a dimensionner.
 // UART GSM actif en SMS_PRODUCTION ; carte deja allumee, sans GPIO PWRKEY.
 #ifndef GSM_HARDWARE_CONFIGURED
-#define GSM_HARDWARE_CONFIGURED 1
+#define GSM_HARDWARE_CONFIGURED (!IOT_HARDWARE_V2)
 #endif
 #ifndef GSM_BAUD_RATE
-#define GSM_BAUD_RATE 9600UL
+#define GSM_BAUD_RATE (IOT_HARDWARE_V2 ? 115200UL : 9600UL)
 #endif
 #ifndef GSM_MODULE_LABEL
+#if IOT_HARDWARE_V2
+#define GSM_MODULE_LABEL "A7670"
+#else
 #define GSM_MODULE_LABEL "SIM800C"
+#endif
 #endif
 // PWRKEY optionnel via transistor : niveau actif cote ESP32, pas cote module.
 #ifndef GSM_PWRKEY_ACTIVE_LEVEL
@@ -48,8 +57,8 @@ static_assert(D2_PERIOD_SECONDS >= 10UL && D2_PERIOD_SECONDS <= 86400UL,
 #define GSM_POWER_STABILIZE_MS 1000UL
 #define GSM_PWRKEY_PULSE_MS 1200UL
 #define GSM_BOOT_WAIT_MS 5000UL
-#define GSM_COMMAND_TIMEOUT_MS 5000UL
-#define GSM_SUBMIT_TIMEOUT_MS 60000UL
+#define GSM_COMMAND_TIMEOUT_MS (IOT_HARDWARE_V2 ? 10000UL : 5000UL)
+#define GSM_SUBMIT_TIMEOUT_MS (IOT_HARDWARE_V2 ? 120000UL : 60000UL)
 #define GSM_RETRY_INTERVAL_MS 30000UL
 #define SMS_RETRY_MAX_MS 900000UL
 static_assert(GSM_COMMAND_TIMEOUT_MS > 0 && GSM_SUBMIT_TIMEOUT_MS > 0 &&
@@ -144,10 +153,143 @@ static_assert(DC_LOAD_CURRENT_POLARITY == 1 || DC_LOAD_CURRENT_POLARITY == -1,
 #define AC_MINIMUM_SAMPLE_COUNT 400U
 #define AC_MAXIMUM_SAMPLE_COUNT 4096U
 
-//  GPS NEO-6M 
+//  GPS NEO-8M (NEO-6M conserve pour les bancs historiques)
 #define GPS_BAUD_RATE 9600
 // Age maximal d'une position utilisable par la telemetrie.
 #define GPS_MAX_AGE_MS 5000UL
+
+// V2 sensor configuration. Enable after checking the physical board, straps,
+// wiring, current limits and shunt rating. Defaults never assert commissioning.
+#define V2_I2C_CLOCK_HZ 100000UL
+#ifndef V2_BATTERY_CONFIGURED
+#define V2_BATTERY_CONFIGURED 0
+#endif
+#ifndef V2_SOLAR_CONFIGURED
+#define V2_SOLAR_CONFIGURED 0
+#endif
+#ifndef V2_DC_CONFIGURED
+#define V2_DC_CONFIGURED 0
+#endif
+#ifndef V2_TV_CONFIGURED
+#define V2_TV_CONFIGURED 0
+#endif
+#ifndef PZEM_HARDWARE_CONFIGURED
+#define PZEM_HARDWARE_CONFIGURED 0
+#endif
+#ifndef D3_RECEIVER_ENABLED
+#define D3_RECEIVER_ENABLED 0
+#endif
+#ifndef V2_BATTERY_ADDRESS
+#define V2_BATTERY_ADDRESS 0x40
+#endif
+#ifndef V2_SOLAR_ADDRESS
+#define V2_SOLAR_ADDRESS 0x41
+#endif
+#ifndef V2_DC_ADDRESS
+#define V2_DC_ADDRESS 0x42
+#endif
+#ifndef V2_TV_ADDRESS
+#define V2_TV_ADDRESS 0x44
+#endif
+// 30 A / 75 mV = 2.5 mOhm. Three independent physical resistances.
+#ifndef BATTERY_SHUNT_OHMS
+#define BATTERY_SHUNT_OHMS 0.0025
+#endif
+#ifndef SOLAR_SHUNT_OHMS
+#define SOLAR_SHUNT_OHMS 0.0025
+#endif
+#ifndef TV_SHUNT_OHMS
+#define TV_SHUNT_OHMS 0.0025
+#endif
+#ifndef BATTERY_MAX_CURRENT_A
+#define BATTERY_MAX_CURRENT_A 30.0
+#endif
+#ifndef SOLAR_MAX_CURRENT_A
+#define SOLAR_MAX_CURRENT_A 30.0
+#endif
+#ifndef TV_MAX_CURRENT_A
+#define TV_MAX_CURRENT_A 30.0
+#endif
+// 3 W is a required minimum assumed for configuration, not a measured rating.
+#ifndef BATTERY_SHUNT_RATED_W
+#define BATTERY_SHUNT_RATED_W 3.0
+#endif
+#ifndef SOLAR_SHUNT_RATED_W
+#define SOLAR_SHUNT_RATED_W 3.0
+#endif
+#ifndef TV_SHUNT_RATED_W
+#define TV_SHUNT_RATED_W 3.0
+#endif
+#ifndef BATTERY_ADC_NARROW_RANGE
+#define BATTERY_ADC_NARROW_RANGE 0
+#endif
+#ifndef SOLAR_ADC_NARROW_RANGE
+#define SOLAR_ADC_NARROW_RANGE 0
+#endif
+#ifndef TV_ADC_NARROW_RANGE
+#define TV_ADC_NARROW_RANGE 0
+#endif
+#ifndef SOLAR_MAX_BUS_V
+#define SOLAR_MAX_BUS_V 85.0
+#endif
+#ifndef TV_MAX_BUS_V
+#define TV_MAX_BUS_V 26.0
+#endif
+#ifndef TV_CURRENT_POLARITY
+#define TV_CURRENT_POLARITY 1
+#endif
+#ifndef DC1_SHUNT_OHMS
+#define DC1_SHUNT_OHMS 0.010
+#endif
+#ifndef DC2_SHUNT_OHMS
+#define DC2_SHUNT_OHMS 0.010
+#endif
+#ifndef DC3_SHUNT_OHMS
+#define DC3_SHUNT_OHMS 0.010
+#endif
+// Provisional 5 A limits and 1 W minimum rating; verify each physical port.
+#ifndef DC1_MAX_CURRENT_A
+#define DC1_MAX_CURRENT_A 5.0
+#endif
+#ifndef DC2_MAX_CURRENT_A
+#define DC2_MAX_CURRENT_A 5.0
+#endif
+#ifndef DC3_MAX_CURRENT_A
+#define DC3_MAX_CURRENT_A 5.0
+#endif
+#ifndef DC1_SHUNT_RATED_W
+#define DC1_SHUNT_RATED_W 1.0
+#endif
+#ifndef DC2_SHUNT_RATED_W
+#define DC2_SHUNT_RATED_W 1.0
+#endif
+#ifndef DC3_SHUNT_RATED_W
+#define DC3_SHUNT_RATED_W 1.0
+#endif
+#ifndef DC1_CURRENT_POLARITY
+#define DC1_CURRENT_POLARITY 1
+#endif
+#ifndef DC2_CURRENT_POLARITY
+#define DC2_CURRENT_POLARITY 1
+#endif
+#ifndef DC3_CURRENT_POLARITY
+#define DC3_CURRENT_POLARITY 1
+#endif
+#define PZEM_BAUD_RATE 9600UL
+#ifndef PZEM_MODBUS_ADDRESS
+#define PZEM_MODBUS_ADDRESS 0xF8
+#endif
+#define PZEM_POLL_INTERVAL_MS 2000UL
+#define PZEM_MAX_AGE_MS 5000UL
+#define PZEM_REPLY_TIMEOUT_MS 1000UL
+#if IOT_HARDWARE_V2
+static_assert(V2_BATTERY_ADDRESS != V2_SOLAR_ADDRESS && V2_BATTERY_ADDRESS != V2_TV_ADDRESS &&
+    V2_BATTERY_ADDRESS != V2_DC_ADDRESS && V2_SOLAR_ADDRESS != V2_TV_ADDRESS &&
+    V2_SOLAR_ADDRESS != V2_DC_ADDRESS && V2_TV_ADDRESS != V2_DC_ADDRESS, "Conflit I2C V2");
+static_assert(BATTERY_MAX_CURRENT_A <= 30 && SOLAR_MAX_CURRENT_A <= 30 && TV_MAX_CURRENT_A <= 30 &&
+    DC1_MAX_CURRENT_A <= 30 && DC2_MAX_CURRENT_A <= 30 && DC3_MAX_CURRENT_A <= 30,
+    "Courants V2 hors du contrat D3");
+#endif
 
 //  GEOFENCING LOCAL
 #define GEOFENCE_ENABLED 1

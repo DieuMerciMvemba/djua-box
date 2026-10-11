@@ -1,5 +1,10 @@
 #include <Arduino.h>
 #include "src/config.h"
+#if IOT_HARDWARE_V2
+#include "src/firmware_v2.h"
+void setup() { setupV2(); }
+void loop() { loopV2(); }
+#else
 #include "src/sensors/power_sensor.h"
 #include "src/sensors/solar_power_sensor.h"
 #include "src/sensors/dc_load_power_sensor.h"
@@ -622,3 +627,4 @@ void loop()
     updateCommunicationStatus();
     updateIndicators();
 }
+#endif // legacy hardware profile

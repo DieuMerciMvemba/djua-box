@@ -1,5 +1,19 @@
 # Progression
 
+## Refonte V2 — 11 octobre 2026
+
+Statut : concepts utilisés, **compréhension non évaluée**.
+
+- **UART logiciel** : PZEM à 9600 bauds sur RX35/TX14 ; les UART matériels restent
+  indépendants pour console, A7670 et NEO-8M. CRC/timeout et essai sous charge requis.
+- **Calibration par shunt** : chaque INA228 conserve son SHUNT_CAL et chaque voie
+  INA3221 sa résistance. Vérifier aussi la dissipation I²R.
+- **Fenêtre et réception partielles** : D3 persiste deux SMS ensemble, mais les
+  reçoit séparément. Paire reçue et énergie complète sont deux conditions distinctes.
+
+À revoir : pourquoi LTE enregistré ne prouve pas SMS, pourquoi le cellulaire ne
+déclenche pas la geofence et pourquoi un reset PZEM n'est pas une énergie négative.
+
 ## Point de départ
 
 Cette première passe reconstruit la compréhension du dépôt à partir du code

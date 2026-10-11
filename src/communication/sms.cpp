@@ -49,7 +49,8 @@ public:
 NvsStore store;
 UartIo io;
 djua::D2Journal journal(store, espHmac);
-djua::GsmEngine modem(io, GSM_COMMAND_TIMEOUT_MS, GSM_SUBMIT_TIMEOUT_MS, GSM_RETRY_INTERVAL_MS);
+djua::GsmEngine modem(io, GSM_COMMAND_TIMEOUT_MS, GSM_SUBMIT_TIMEOUT_MS, GSM_RETRY_INTERVAL_MS,
+    IOT_HARDWARE_V2 ? djua::GsmModel::A7670 : djua::GsmModel::Sim800);
 djua::SmsScheduler scheduler(journal, modem, GSM_RETRY_INTERVAL_MS, SMS_RETRY_MAX_MS);
 bool healthy = false, queueFault = false;
 djua::GsmStartup startup(GSM_POWER_STABILIZE_MS, GSM_PWRKEY_PULSE_MS, GSM_BOOT_WAIT_MS);
@@ -62,7 +63,8 @@ djua::GsmFault lastModemFault = djua::GsmFault::None;
 constexpr bool occupiedPin(int pin) {
     return pin == GPS_RX_PIN || pin == GPS_TX_PIN || pin == I2C_SDA_PIN || pin == I2C_SCL_PIN ||
         pin == DS1302_DATA_PIN || pin == DS1302_CLOCK_PIN || pin == DS1302_CE_PIN ||
-        pin == ZMPT101B_ADC_PIN || pin == ACS712_ADC_PIN || pin == LED_SYSTEM_PIN ||
+        (IOT_HARDWARE_V2 ? (pin == PZEM_RX_PIN || pin == PZEM_TX_PIN) :
+         (pin == ZMPT101B_ADC_PIN || pin == ACS712_ADC_PIN)) || pin == LED_SYSTEM_PIN ||
         pin == LED_COMM_PIN || pin == LED_ALERT_PIN || pin == BUZZER_PIN;
 }
 constexpr bool uartPin(int pin, bool tx) {
@@ -191,11 +193,13 @@ void updateSMS() {
     if (lastModemFault != modem.fault()) {
         lastModemFault = modem.fault();
         const char* reason = lastModemFault == djua::GsmFault::SimNotReady ? "SIM ABSENTE/VERROUILLEE (PIN/PUK)" :
+            lastModemFault == djua::GsmFault::SmsUnsupported ? "SERVICE SMS MO NON DISPONIBLE" :
+            lastModemFault == djua::GsmFault::ServiceCentreMissing ? "CENTRE SMS NON CONFIGURE" :
             lastModemFault == djua::GsmFault::NotRegistered ? "RESEAU NON ENREGISTRE" :
             lastModemFault == djua::GsmFault::SubmitTimeout ? "CMGS INCERTAIN/TIMEOUT" :
             lastModemFault == djua::GsmFault::PromptTimeout ? "COMMANDE/PROMPT TIMEOUT" :
             lastModemFault == djua::GsmFault::None ? "MODEM PRET" : "ERREUR AT/UART";
-        Serial.printf("[GSM] %s\n", reason);
+        Serial.printf("[GSM] %s | code_erreur=%d\n", reason, modem.errorCode());
     }
     const auto result = scheduler.takeResult();
     if (result != djua::GsmResult::None) {
@@ -209,6 +213,15 @@ void updateSMS() {
         lastState = journal.state(); Serial.printf("[D2] %s\n", djua::d2StateName(lastState));
     }
 }
+bool enqueueSMSV3(djua::TelemetryV3 frame) {
+    if (!D3_RECEIVER_ENABLED) return false;
+    djua::D2Error error; const auto result = journal.enqueueV3(frame, error);
+    queueFault = result != djua::EnqueueResult::Stored;
+    if (queueFault) recordSMSTelemetryStatus(false);
+    Serial.printf("[D3] paire=%s | erreur=%s | file=%u\n", queueFault ? "NON CREEE" : "ENREGISTREE EN NVS",
+        djua::d2ErrorName(error), static_cast<unsigned>(journal.count()));
+    return !queueFault;
+}
 bool isSMSNetworkRegistered() { return modem.registered(); }
 bool isSMSConnecting() { return io.open && (!modemStarted || !modem.ready()); }
 bool isSMSHardwareConfigured() { return io.open; }
@@ -220,6 +233,7 @@ djua::D2State smsProvisioningState() { return journal.state(); }
 void initSMS() {}
 void updateSMS() {}
 bool enqueueSMS(djua::D2Frame) { return false; }
+bool enqueueSMSV3(djua::TelemetryV3) { return false; }
 bool isSMSNetworkRegistered() { return false; }
 bool isSMSConnecting() { return false; }
 bool isSMSHardwareConfigured() { return false; }

@@ -1,4 +1,5 @@
 #include "mqtt.h"
+#include "../telemetry/json_v3.h"
 #include "../config.h"
 #if DJUA_COMM_PROFILE == DJUA_PROFILE_MQTT_TEST
 
@@ -91,7 +92,7 @@ void initMQTT()
 {
     mqttClient.setServer(MQTT_BROKER_HOST, MQTT_BROKER_PORT);
     // The default PubSubClient packet limit is too small for the full payload.
-    mqttClient.setBufferSize(1536);
+    mqttClient.setBufferSize(4096);
 }
 
 void updateMQTT()
@@ -124,7 +125,7 @@ bool sendTelemetryToMQTT(const TelemetryData& data)
         return false;
     }
 
-    StaticJsonDocument<1280> doc;
+    JsonDocument doc;
     doc["kit_id"] = DEVICE_ID;
 
     if (data.timestampValid)
@@ -172,7 +173,9 @@ bool sendTelemetryToMQTT(const TelemetryData& data)
     }
     if (!data.dcLoadEnergyComplete) dcLoad["energy_interval_wh"] = nullptr;
 
-    char payload[1280];
+    if (data.v3Present) telemetryJsonV3(doc, data);
+    if (doc.overflowed()) { Serial.println("[MQTT] Capacite JSON depassee"); return false; }
+    char payload[3072];
     size_t payloadSize = serializeJson(doc, payload, sizeof(payload));
     if (payloadSize == 0 || payloadSize >= sizeof(payload))
     {

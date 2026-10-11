@@ -40,7 +40,7 @@ void updateGPS()
     /*
      * Important :
      * TinyGPSPlus doit recevoir continuellement les
-     * caracteres provenant du NEO-6M.
+     * caracteres NMEA provenant du NEO-8M.
      */
     while (gpsSerial.available() > 0)
     {

@@ -4,6 +4,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import os
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
@@ -16,10 +17,10 @@ sources = [HERE / "drivers_test.cpp", ROOT / "src/drivers/ina228.cpp",
            ROOT / "src/drivers/ina3221.cpp", ROOT / "src/drivers/pzem004t.cpp",
            ROOT / "src/communication/gsm.cpp", ROOT / "src/communication/d2_codec.cpp",
            ROOT / "src/communication/d2t2_codec.cpp", ROOT / "src/communication/d3_codec.cpp",
-           ROOT / "src/communication/d2_store.cpp"]
+           ROOT / "src/communication/d2_store.cpp", ROOT / "src/geofencing/geofence.cpp"]
 with tempfile.TemporaryDirectory(prefix="iot-v2-host-") as directory:
     binary = Path(directory) / "drivers_test.exe"
-    command = [compiler, "/nologo", "/std:c++17", "/EHsc", "/W4", "/WX", "/utf-8", "/D_CRT_SECURE_NO_WARNINGS",
+    command = [compiler, "/nologo", "/std:c++17", "/EHsc", "/W4", "/WX", "/utf-8", "/D_CRT_SECURE_NO_WARNINGS", f"/I{ROOT / 'tests/dc_load'}",
                *map(str, sources), f"/Fe:{binary}"]
     result = subprocess.run(command, cwd=directory, env=environment,
                             capture_output=True, text=True, errors="replace")
@@ -62,3 +63,14 @@ with tempfile.TemporaryDirectory(prefix="iot-v2-host-") as directory:
         digest = hmac.new(bytes(range(1, 33)), sms.rsplit(",", 1)[0].encode("ascii"), hashlib.sha256).digest()
         assert auth == base64.urlsafe_b64encode(digest[:8]).decode().rstrip("=")
     print("PASS independent Python reference: both 75-byte payloads, Base64URL, signed part, HMAC, GSM-7")
+    json_library = Path(os.environ.get("ARDUINOJSON_INCLUDE", str(Path.home() / "Documents/Arduino/libraries/ArduinoJson/src")))
+    if not (json_library / "ArduinoJson.h").exists():
+        raise RuntimeError("JSON test requires installed ArduinoJson 7; set ARDUINOJSON_INCLUDE to its src directory.")
+    json_binary = Path(directory) / "json_test.exe"
+    command = [compiler, "/nologo", "/std:c++17", "/EHsc", "/W4", "/WX", "/utf-8",
+               f"/I{json_library}", f"/I{ROOT / 'tests/dc_load'}", str(HERE / "json_test.cpp"), f"/Fe:{json_binary}"]
+    result = subprocess.run(command, cwd=directory, env=environment, capture_output=True, text=True, errors="replace")
+    print(result.stdout, end="")
+    if result.returncode:
+        raise RuntimeError(result.stdout + result.stderr)
+    subprocess.run([str(json_binary)], check=True)

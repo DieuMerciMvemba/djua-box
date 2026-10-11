@@ -65,6 +65,8 @@ partie 1. Ordre exact :
 `energy_complete` exige valid ; sinon energy=0. Un zéro avec valid=1 reste une
 mesure zéro, pas une absence. Les unités et plages du protocole ne valident pas
 le dimensionnement physique du montage.
+Pour une voie DC valide, `|P - V×I| <= 1 W + 2 % × |P|` ; cette tolérance
+accepte la quantification des champs sans accepter une puissance incohérente.
 
 ## Partie 0 — ordre après l'en-tête
 
@@ -123,6 +125,9 @@ Capacité : 16 SMS, dont au maximum 4 périodiques, donc 2 fenêtres D3 ; 12 pla
 restent réservées aux urgences. La saturation refuse explicitement la nouvelle
 fenêtre. Chaque retry conserve exactement le texte, la séquence et le HMAC.
 Retrait après `+CMGS` et `OK` uniquement ; réception finale non confirmée.
+Cette compatibilité concerne les anciens messages relus par le nouveau firmware.
+Un binaire antérieur à D3 peut refuser une file qui contient D3 ; conserver les
+blobs et utiliser un firmware comprenant D3 pour la reprendre, sans effacement NVS.
 
 Le récepteur doit :
 

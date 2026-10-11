@@ -56,6 +56,30 @@ class MqttContractTests(unittest.TestCase):
         self.assertEqual(record["data"], payload)
         self.assertNotIn("timestamp_ms", record["data"])
 
+    def test_v3_preserves_four_dc_identities_quality_and_incomplete_energy(self) -> None:
+        payload = {
+            "schema_version": 3,
+            "kit_id": "DJUA-KIN-000001",
+            "interval_seconds": 1800,
+            "latitude": None,
+            "longitude": None,
+            "location": {"source": 1, "valid": False, "age_ms": 6000, "accuracy_m": None},
+            "battery": {"valid": True, "current_a": -1.0, "energy_interval_wh": -6.0},
+            "ac_load": {"valid": True, "frequency_hz": 50, "power_factor": 0.83,
+                        "energy_complete": False, "energy_interval_wh": None, "energy_fault": 12},
+            "dc_ports": [
+                {"id": "DC1", "valid": True, "power_w": 0.0},
+                {"id": "DC2", "valid": False, "power_w": None, "fault": 4},
+                {"id": "DC3", "valid": True, "power_w": 12.0},
+                {"id": "TV", "valid": True, "power_w": 24.0},
+            ],
+        }
+        self.publish("djua/test/DJUA-KIN-000001/telemetry", payload)
+        record = main.latest_telemetry_by_device["DJUA-KIN-000001"]
+        self.assertEqual(record["data"], payload)
+        self.assertEqual([port["id"] for port in record["data"]["dc_ports"]], ["DC1", "DC2", "DC3", "TV"])
+        self.assertIsNone(record["data"]["dc_ports"][1]["power_w"])
+
     def test_solar_unavailable_is_distinct_from_valid_zero(self) -> None:
         keys = ("voltage_v", "current_a", "power_w", "energy_interval_wh")
         for value in (None, 0.0):

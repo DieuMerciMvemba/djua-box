@@ -4,6 +4,8 @@
 #include "../../src/communication/gsm.h"
 #include "../../src/location/location.h"
 #include "../../src/communication/d2_store.h"
+#include "../../src/geofencing/geofence.h"
+#include "../../src/config.h"
 #include "../sms/host_crypto.h"
 #undef near // Windows legacy calling-convention macro, used only by host BCrypt.
 #include "../../src/telemetry/energy_window.h"
@@ -143,6 +145,13 @@ static void modemAndLocationTests() {
     cell.fix.valid = false; assert(!service.read(5000).valid);
     gnss.fix.ageMs = 0; gnss.fix.accuracyKnown = true; gnss.fix.accuracyM = 100;
     assert(!precisionGeofenceUsable(gnss.fix, 5000, 10));
+    initGeofence(); LocationFix centre{GEOFENCE_CENTER_LAT, GEOFENCE_CENTER_LON, true};
+    assert(updateGeofence(centre).state == GEOFENCE_INSIDE);
+    auto coarse = centre; coarse.source = LocationSource::Cellular;
+    assert(!updateGeofence(coarse).positionUsable);
+    centre.latitude += .001;
+    assert(!updateGeofence(centre).exitEvent); assert(!updateGeofence(centre).exitEvent);
+    assert(updateGeofence(centre).exitEvent);
     puts("PASS A7670/location: LTE without SMS, SMSC, CMS error, registration loss, GNSS priority, freshness, cell geofence rejected");
 }
 struct TestStore : D2Store {
@@ -186,6 +195,11 @@ static void codecTests() {
     assert(encodeD3(frame, publicTestKey, true, hostHmac, sms) == D2Error::Ok);
     assert(decodeD3(sms, publicTestKey, true, hostHmac, parsed) == D2Error::Ok);
     assert(parsed.dc[0].valid && !parsed.dc[2].valid && parsed.dc[2].fault == MeasureFault::Io);
+    assert(encodeD3(frame, nullptr, false, hostHmac, sms) == D2Error::Ok);
+    assert(decodeD3(sms, nullptr, true, hostHmac, parsed) == D2Error::AuthRequired);
+    char* payloadEnd = strrchr(sms, ',');
+    payloadEnd[-1] = 'B'; // The last six payload bits are reserved and must be zero.
+    assert(decodeD3(sms, nullptr, false, hostHmac, parsed) == D2Error::ReservedBits);
     frame.dc[2].power = 10;
     assert(encodeD3(frame, publicTestKey, true, hostHmac, sms) == D2Error::NonCanonicalAbsent && !*sms);
     frame = vectorFrame(); frame.ac.electric.energyComplete = true; frame.ac.energyFault = MeasureFault::CounterReset;
@@ -218,7 +232,27 @@ static void codecTests() {
     assert(recovered.at(0)->sequence == 257);
     assert(recovered.enqueueV3(frame, error) == EnqueueResult::Stored);
     assert(recovered.enqueueV3(frame, error) == EnqueueResult::Full);
-    puts("PASS D3: length/HMAC, fields, absence, ranges, paired atomic NVS, legacy migration, reboot, immutable retries, capacity");
+    TestStore invalidStore; D2Journal invalidPair(invalidStore, hostHmac); invalidPair.begin();
+    assert(invalidPair.provision("TEST-001", publicTestKey, "+243810000001", "PUBLIC-TEST"));
+    frame.dc[0].fault = MeasureFault::Io; // Part 0 is valid, part 1 cannot be encoded.
+    assert(invalidPair.enqueueV3(frame, error) == EnqueueResult::CodecError && invalidPair.count() == 0);
+    D2Journal invalidReboot(invalidStore, hostHmac); invalidReboot.begin();
+    assert(invalidReboot.state() == D2State::Ready && invalidReboot.count() == 0);
+    frame = vectorFrame();
+    TestStore finalStore; D2Journal finalPair(finalStore, hostHmac); finalPair.begin();
+    assert(finalPair.provision("TEST-001", publicTestKey, "+243810000001", "PUBLIC-TEST", UINT32_MAX - 1ULL));
+    assert(finalPair.enqueueV3(frame, error) == EnqueueResult::Stored);
+    assert(finalPair.at(0)->sequence == UINT32_MAX - 1 && finalPair.at(1)->sequence == UINT32_MAX);
+    D2Journal exhausted(finalStore, hostHmac); exhausted.begin();
+    assert(exhausted.state() == D2State::SequenceExhausted && exhausted.count() == 2);
+    assert(exhausted.recordAttempt(1) && exhausted.acceptedByModem(1));
+    assert(exhausted.enqueueV3(frame, error) == EnqueueResult::NotReady);
+    TestStore loneStore; D2Journal lone(loneStore, hostHmac); lone.begin();
+    assert(lone.provision("TEST-001", publicTestKey, "+243810000001", "PUBLIC-TEST", UINT32_MAX));
+    assert(lone.enqueueV3(frame, error) == EnqueueResult::NotReady && lone.count() == 0);
+    D2Journal loneReboot(loneStore, hostHmac); loneReboot.begin();
+    assert(loneReboot.state() == D2State::SequenceExhausted && loneReboot.count() == 0);
+    puts("PASS D3: length/HMAC, fields, absence, reserved bits, ranges, paired atomic NVS, legacy migration, reboot, immutable retries, capacity, sequence exhaustion");
 }
 int main(int argc, char** argv) {
     for (unsigned i = 0; i < 32; ++i) publicTestKey[i] = static_cast<uint8_t>(i + 1);
@@ -240,6 +274,7 @@ int main(int argc, char** argv) {
     assert(battery.start(0)); auto value = battery.read(200);
     assert(value.valid && near(value.voltage, 12) && near(value.current, 10));
     assert(near(value.power, 120, .02));
+    assert(battery.read(201).fault == MeasureFault::NotReady);
     port.reg(0x40, 4) = (1048576U - 80000U) << 4;
     port.reg(0x40, 7) = (1048576U - 174763U) << 4;
     assert(battery.start(1000)); value = battery.read(1200);
@@ -278,6 +313,7 @@ int main(int argc, char** argv) {
     assert(readings[0].valid && near(readings[0].power, 12));
     assert(readings[1].valid && near(readings[1].power, -12));
     assert(readings[2].valid);
+    assert(!loads.read(21, readings));
     port.reg(0x42, 5) = 2000U << 3; // 8 A, third port only exceeds configured limit
     assert(loads.start(100)); assert(loads.read(120, readings));
     assert(readings[0].valid && readings[1].valid && !readings[2].valid);

@@ -1,4 +1,5 @@
 #include "internet.h"
+#include "../telemetry/json_v3.h"
 #include "../config.h"
 #if DJUA_COMM_PROFILE != DJUA_PROFILE_SMS_PRODUCTION
 
@@ -121,7 +122,7 @@ bool sendTelemetryToBackend(const TelemetryData& data)
     // CONSTRUCTION DU JSON
     // =================================================
 
-    StaticJsonDocument<1280> doc;
+    JsonDocument doc;
 
     // Identifiant attendu par le backend
     doc["kit_id"] = DEVICE_ID;
@@ -221,6 +222,8 @@ bool sendTelemetryToBackend(const TelemetryData& data)
     // CONVERSION JSON -> STRING
     // =================================================
 
+    if (data.v3Present) telemetryJsonV3(doc, data);
+    if (doc.overflowed()) { Serial.println("[HTTP] Capacite JSON depassee"); return false; }
     String payload;
 
     serializeJson(

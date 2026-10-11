@@ -1,3 +1,5 @@
+#include "../config.h"
+#if !IOT_HARDWARE_V2
 #include "solar_power_sensor.h"
 #include "../config.h"
 
@@ -164,3 +166,5 @@ bool isSolarPowerSensorAvailable()
     return false;
 #endif
 }
+
+#endif // legacy sensor, not linked into target V2

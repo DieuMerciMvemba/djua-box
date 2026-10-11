@@ -22,6 +22,7 @@ bool Ina3221::start(uint32_t now) {
 bool Ina3221::read(uint32_t now, ElectricalReading (&out)[3]) {
     uint32_t status = 0;
     MeasureFault common = fault_;
+    if (!pending_ && common == MeasureFault::None) return false;
     if (pending_) {
         if (!bus_.read(address_, 0x0f, status)) common = MeasureFault::Io;
         else if (!(status & 1)) common = now - startedAt_ >= 1000 ? MeasureFault::Timeout : MeasureFault::NotReady;

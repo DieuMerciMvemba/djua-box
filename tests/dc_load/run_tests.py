@@ -15,7 +15,7 @@ with tempfile.TemporaryDirectory(prefix="djua-dc-host-") as directory:
         ("configured", 1, 1, 1), ("reversed", 1, 1, -1),
         ("unconfigured", 1, 0, 1), ("disabled", 0, 1, 1)):
         executable = Path(directory) / f"{name}.exe"
-        command = [compiler, "/nologo", "/std:c++17", "/EHsc", "/W4", "/utf-8",
+        command = [compiler, "/nologo", "/std:c++17", "/EHsc", "/W4", "/utf-8", "/DIOT_HARDWARE_V2=0",
             f"/I{HERE}", f"/DDC_LOAD_MEASUREMENT_ENABLED={enabled}",
             f"/DDC_LOAD_SHUNT_CONFIGURED={configured}", f"/DDC_LOAD_CURRENT_POLARITY={polarity}",
             str(HERE / "dc_load_test.cpp"), f"/Fe:{executable}"]

@@ -34,13 +34,14 @@ void countFailure(uint32_t& counter, bool failed) {
 
 void refreshAlert(bool announce = true) {
     const bool powerWarning = powerFailures >= SENSOR_WARNING_FAILURE_COUNT;
-    const bool acWarning = AC_MEASUREMENT_ENABLED && acFailures >= SENSOR_WARNING_FAILURE_COUNT;
-    const bool solarWarning = SOLAR_MEASUREMENT_ENABLED &&
+    const bool acWarning = (IOT_HARDWARE_V2 ? PZEM_HARDWARE_CONFIGURED : AC_MEASUREMENT_ENABLED) && acFailures >= SENSOR_WARNING_FAILURE_COUNT;
+    const bool solarWarning = (IOT_HARDWARE_V2 ? V2_SOLAR_CONFIGURED : SOLAR_MEASUREMENT_ENABLED) &&
         (solarFailures >= SENSOR_WARNING_FAILURE_COUNT ||
          solarUnavailable >= SENSOR_WARNING_FAILURE_COUNT);
     const bool critical = powerUnavailable >= INA219_CRITICAL_FAILURE_COUNT ||
                           (powerWarning && acWarning) || batteryCritical;
-    const bool dcWarning = DC_LOAD_MEASUREMENT_ENABLED && DC_LOAD_SHUNT_CONFIGURED &&
+    const bool dcWarning = (IOT_HARDWARE_V2 ? (V2_DC_CONFIGURED || V2_TV_CONFIGURED) :
+        (DC_LOAD_MEASUREMENT_ENABLED && DC_LOAD_SHUNT_CONFIGURED)) &&
         (dcFailures >= SENSOR_WARNING_FAILURE_COUNT || dcUnavailable >= SENSOR_WARNING_FAILURE_COUNT);
     const bool warning = rtcInvalid || powerWarning || acWarning || solarWarning || dcWarning || batteryWarning ||
                          mqttWarning || smsWarning || telemetryFailures >= TELEMETRY_WARNING_FAILURE_COUNT;
@@ -72,6 +73,28 @@ void initDeviceStatus(bool powerAvailable, bool rtcValid) {
     refreshAlert();
 }
 
+void recordV2SensorStatus(const bool sensorPresent[6], const bool valid[6], bool acValid,
+                          bool rtcValid, float batteryVoltage) {
+    countFailure(powerFailures, V2_BATTERY_CONFIGURED && !valid[0]);
+    countFailure(powerUnavailable, V2_BATTERY_CONFIGURED && !sensorPresent[0]);
+    countFailure(solarFailures, V2_SOLAR_CONFIGURED && !valid[1]);
+    countFailure(solarUnavailable, V2_SOLAR_CONFIGURED && !sensorPresent[1]);
+    bool dcFailed = false, dcMissing = false;
+    for (unsigned i = 2; i < 6; ++i) {
+        const bool enabled = i == 5 ? V2_TV_CONFIGURED : V2_DC_CONFIGURED;
+        dcFailed |= enabled && !valid[i]; dcMissing |= enabled && !sensorPresent[i];
+    }
+    countFailure(dcFailures, dcFailed); countFailure(dcUnavailable, dcMissing);
+    countFailure(acFailures, PZEM_HARDWARE_CONFIGURED && !acValid); rtcInvalid = !rtcValid;
+#if BATTERY_ALERTS_ENABLED
+    if (V2_BATTERY_CONFIGURED && valid[0]) {
+        batteryWarning = batteryVoltage <= BATTERY_WARNING_V; batteryCritical = batteryVoltage <= BATTERY_CRITICAL_V;
+    }
+#else
+    (void)batteryVoltage;
+#endif
+    refreshAlert();
+}
 void recordSolarStatus(bool solarAvailable, bool solarValid, bool deferAlertRefresh) {
     countFailure(solarFailures, SOLAR_MEASUREMENT_ENABLED && !solarValid);
     countFailure(solarUnavailable, SOLAR_MEASUREMENT_ENABLED && !solarAvailable);

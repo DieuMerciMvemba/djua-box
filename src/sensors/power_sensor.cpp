@@ -1,3 +1,5 @@
+#include "../config.h"
+#if !IOT_HARDWARE_V2
 #include "power_sensor.h"
 
 #include <Adafruit_INA219.h>
@@ -189,3 +191,5 @@ bool isPowerSensorAvailable()
 {
     return powerSensorAvailable;
 }
+
+#endif // legacy sensor, not linked into target V2
