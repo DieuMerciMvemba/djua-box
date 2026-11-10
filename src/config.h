@@ -24,7 +24,7 @@
 #define D2_ELECTRICAL_MAX_AGE_MS 20000UL
 #define D2_ENERGY_MAX_GAP_MS 20000UL
 #ifndef D2_PERIOD_SECONDS
-#define D2_PERIOD_SECONDS 60UL
+#define D2_PERIOD_SECONDS 30UL
 #endif
 static_assert(D2_PERIOD_SECONDS >= 10UL && D2_PERIOD_SECONDS <= 86400UL,
               "La periode D2 doit rester entre 10 et 86400 secondes");
@@ -41,7 +41,7 @@ static_assert(D2_PERIOD_SECONDS >= 10UL && D2_PERIOD_SECONDS <= 86400UL,
 #endif
 // PWRKEY optionnel via transistor : niveau actif cote ESP32, pas cote module.
 #ifndef GSM_PWRKEY_ACTIVE_LEVEL
-#define GSM_PWRKEY_ACTIVE_LEVEL 1
+#define GSM_PWRKEY_ACTIVE_LEVEL 0
 #endif
 #define GSM_POWER_STABILIZE_MS 1000UL
 #define GSM_PWRKEY_PULSE_MS 1200UL
@@ -80,34 +80,34 @@ static_assert(BATTERY_CURRENT_POLARITY == 1 || BATTERY_CURRENT_POLARITY == -1,
 // wiring, current limits and shunt rating. Defaults never assert commissioning.
 #define V2_I2C_CLOCK_HZ 100000UL
 #ifndef V2_BATTERY_CONFIGURED
-#define V2_BATTERY_CONFIGURED 0
+#define V2_BATTERY_CONFIGURED 1
 #endif
 #ifndef V2_SOLAR_CONFIGURED
-#define V2_SOLAR_CONFIGURED 0
+#define V2_SOLAR_CONFIGURED 1
 #endif
 #ifndef V2_DC_CONFIGURED
-#define V2_DC_CONFIGURED 0
+#define V2_DC_CONFIGURED 1
 #endif
 #ifndef V2_TV_CONFIGURED
-#define V2_TV_CONFIGURED 0
+#define V2_TV_CONFIGURED 1
 #endif
 #ifndef PZEM_HARDWARE_CONFIGURED
-#define PZEM_HARDWARE_CONFIGURED 0
+#define PZEM_HARDWARE_CONFIGURED 1
 #endif
 #ifndef D3_RECEIVER_ENABLED
 #define D3_RECEIVER_ENABLED 0
 #endif
 #ifndef V2_BATTERY_ADDRESS
-#define V2_BATTERY_ADDRESS 0x40
+#define V2_BATTERY_ADDRESS 0x44
 #endif
 #ifndef V2_SOLAR_ADDRESS
 #define V2_SOLAR_ADDRESS 0x41
 #endif
 #ifndef V2_DC_ADDRESS
-#define V2_DC_ADDRESS 0x42
+#define V2_DC_ADDRESS 0x40
 #endif
 #ifndef V2_TV_ADDRESS
-#define V2_TV_ADDRESS 0x44
+#define V2_TV_ADDRESS 0x45
 #endif
 // 30 A / 75 mV = 2.5 mOhm. Three independent physical resistances.
 #ifndef BATTERY_SHUNT_OHMS
@@ -117,7 +117,7 @@ static_assert(BATTERY_CURRENT_POLARITY == 1 || BATTERY_CURRENT_POLARITY == -1,
 #define SOLAR_SHUNT_OHMS 0.0025
 #endif
 #ifndef TV_SHUNT_OHMS
-#define TV_SHUNT_OHMS 0.0025
+#define TV_SHUNT_OHMS 0.015
 #endif
 #ifndef BATTERY_MAX_CURRENT_A
 #define BATTERY_MAX_CURRENT_A 30.0
@@ -126,7 +126,7 @@ static_assert(BATTERY_CURRENT_POLARITY == 1 || BATTERY_CURRENT_POLARITY == -1,
 #define SOLAR_MAX_CURRENT_A 30.0
 #endif
 #ifndef TV_MAX_CURRENT_A
-#define TV_MAX_CURRENT_A 30.0
+#define TV_MAX_CURRENT_A 2.5
 #endif
 // 3 W is a required minimum assumed for configuration, not a measured rating.
 #ifndef BATTERY_SHUNT_RATED_W
@@ -157,13 +157,13 @@ static_assert(BATTERY_CURRENT_POLARITY == 1 || BATTERY_CURRENT_POLARITY == -1,
 #define TV_CURRENT_POLARITY 1
 #endif
 #ifndef DC1_SHUNT_OHMS
-#define DC1_SHUNT_OHMS 0.010
+#define DC1_SHUNT_OHMS 0.020
 #endif
 #ifndef DC2_SHUNT_OHMS
-#define DC2_SHUNT_OHMS 0.010
+#define DC2_SHUNT_OHMS 0.020
 #endif
 #ifndef DC3_SHUNT_OHMS
-#define DC3_SHUNT_OHMS 0.010
+#define DC3_SHUNT_OHMS 0.020
 #endif
 // Provisional 5 A limits and 1 W minimum rating; verify each physical port.
 #ifndef DC1_MAX_CURRENT_A
@@ -264,7 +264,7 @@ static_assert(BATTERY_MAX_CURRENT_A <= 30 && SOLAR_MAX_CURRENT_A <= 30 && TV_MAX
 #define BUZZER_ACTIVE_HIGH 1
 #endif
 #ifndef BUZZER_PASSIVE
-#define BUZZER_PASSIVE 1
+#define BUZZER_PASSIVE 0
 #endif
 #define BUZZER_FREQUENCY_HZ 2000UL
 #define BUZZER_SHORT_BEEP_MS 100UL

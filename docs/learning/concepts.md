@@ -83,3 +83,18 @@ du message avec la clé propre à l'appareil.
 par le modem ; le récepteur doit encore recevoir et vérifier les deux parties.
 
 **Exemple du projet :** chaque SMS D3 porte sa propre séquence et signature.
+
+## Maillage STL fermé
+
+**Rencontré dans :** `3d/xt90i/xt90i_gen.py` et les STL générés.
+
+**Pourquoi il existe ici :** le trancheur transforme les triangles du STL en
+volume imprimable. Une surface ouverte ou des arêtes mal raccordées peuvent
+faire interpréter le boîtier comme un volume incomplet.
+
+**À retenir :** un maillage fermé et sans triangles dégénérés est nécessaire
+pour une impression fiable, mais ne prouve pas que le jeu mécanique conviendra
+à l'imprimante ou aux contacts réels.
+
+**Exemple du projet :** les boîtiers XT90i sont contrôlés avant export ; les
+coupons servent ensuite à vérifier le jeu réel après impression.

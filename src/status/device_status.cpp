@@ -3,6 +3,10 @@
 #include "../config.h"
 #include "../indicators/indicators.h"
 
+#ifndef ALERT_CAUSE_LOG_ENABLED
+#define ALERT_CAUSE_LOG_ENABLED 1
+#endif
+
 namespace {
 uint32_t powerFailures = 0, powerUnavailable = 0, acFailures = 0;
 uint32_t solarFailures = 0, solarUnavailable = 0;
@@ -46,6 +50,23 @@ void refreshAlert(bool announce = true) {
                          mqttWarning || smsWarning || telemetryFailures >= TELEMETRY_WARNING_FAILURE_COUNT;
     const AlertIndicatorState next = geofenceAlarmActive ? ALERT_GEOFENCE :
         critical ? ALERT_CRITICAL : warning ? ALERT_WARNING : ALERT_NONE;
+#if ALERT_CAUSE_LOG_ENABLED
+#ifdef ARDUINO
+    static uint16_t lastCauses = 0xFFFF;
+    const uint16_t causes = (rtcInvalid << 0) | (powerWarning << 1) | (acWarning << 2) |
+        (solarWarning << 3) | (dcWarning << 4) | (batteryWarning << 5) | (mqttWarning << 6) |
+        (smsWarning << 7) | ((telemetryFailures >= TELEMETRY_WARNING_FAILURE_COUNT) << 8) |
+        (geofenceAlarmActive << 9) |
+        ((powerUnavailable >= BATTERY_SENSOR_CRITICAL_FAILURE_COUNT) << 10) | (batteryCritical << 11);
+    if (causes != lastCauses) {
+        lastCauses = causes;
+        Serial.printf("[ALERT] rtc=%d bat=%d ac=%d sol=%d dc=%d battWarn=%d mqtt=%d sms=%d tele=%d geo=%d batAbsent=%d battCrit=%d\n",
+            rtcInvalid, powerWarning, acWarning, solarWarning, dcWarning, batteryWarning,
+            mqttWarning, smsWarning, telemetryFailures >= TELEMETRY_WARNING_FAILURE_COUNT,
+            geofenceAlarmActive, powerUnavailable >= BATTERY_SENSOR_CRITICAL_FAILURE_COUNT, batteryCritical);
+    }
+#endif
+#endif
     setAlertIndicatorState(next);
     if (announce && next != lastAlert) {
         if (next == ALERT_GEOFENCE) triggerBuzzer(BUZZER_GEOFENCE);

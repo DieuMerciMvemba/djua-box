@@ -14,10 +14,91 @@ static TinyGPSPlus gps;
 // UART matériel numéro 2 de l'ESP32
 static HardwareSerial gpsSerial(2);
 
+namespace {
+// Un résumé régulier permet de diagnostiquer le GPS même sans position valide.
+constexpr uint32_t GPS_DIAGNOSTIC_INTERVAL_MS = 5000UL;
+uint32_t lastDiagnosticAt = 0;
+uint32_t receivedBytesSinceDiagnostic = 0;
+uint32_t receivedBytesTotal = 0;
+
+void printFieldAge(bool valid, unsigned long ageMs)
+{
+    if (!valid)
+    {
+        Serial.print("inconnu");
+        return;
+    }
+
+    Serial.print(ageMs <= GPS_MAX_AGE_MS ? "frais, age=" : "perime, age=");
+    Serial.print(ageMs);
+    Serial.print(" ms");
+}
+
+void printGPSDiagnostics(uint32_t now)
+{
+    const uint32_t elapsed = now - lastDiagnosticAt;
+    if (elapsed < GPS_DIAGNOSTIC_INTERVAL_MS) return;
+
+    Serial.print("[GPS] UART RX: ");
+    Serial.print(receivedBytesSinceDiagnostic);
+    Serial.print(" octets/");
+    Serial.print(elapsed);
+    Serial.print(" ms, total=");
+    Serial.print(receivedBytesTotal);
+    Serial.print(" | NMEA: caracteres=");
+    Serial.print(gps.charsProcessed());
+    Serial.print(" checksum_OK=");
+    Serial.print(gps.passedChecksum());
+    Serial.print(" checksum_KO=");
+    Serial.print(gps.failedChecksum());
+    Serial.print(" trames_avec_FIX=");
+    Serial.println(gps.sentencesWithFix());
+
+    const bool locationValid = gps.location.isValid();
+    const unsigned long locationAge = gps.location.age();
+    Serial.print("[GPS] Etat: FIX=");
+    if (!locationValid) Serial.print("NON");
+    else Serial.print(locationAge <= GPS_MAX_AGE_MS ? "OUI_RECENT" : "PERIME");
+    Serial.print(" (age=");
+    if (locationValid) Serial.print(locationAge);
+    else Serial.print("inconnu");
+    Serial.print(" ms, limite=");
+    Serial.print(GPS_MAX_AGE_MS);
+    Serial.print(" ms) | satellites=");
+    if (gps.satellites.isValid()) Serial.print(gps.satellites.value());
+    else Serial.print("inconnu");
+    Serial.print(" (");
+    printFieldAge(gps.satellites.isValid(), gps.satellites.age());
+    Serial.print(") | HDOP=");
+    if (gps.hdop.isValid()) Serial.print(gps.hdop.hdop() / 100.0, 2);
+    else Serial.print("inconnu");
+    Serial.print(" (");
+    printFieldAge(gps.hdop.isValid(), gps.hdop.age());
+    Serial.print(") | altitude=");
+    if (gps.altitude.isValid()) Serial.print(gps.altitude.meters(), 1);
+    else Serial.print("inconnue");
+    Serial.print(" m (");
+    printFieldAge(gps.altitude.isValid(), gps.altitude.age());
+    Serial.print(") | vitesse=");
+    if (gps.speed.isValid()) Serial.print(gps.speed.kmph(), 1);
+    else Serial.print("inconnue");
+    Serial.print(" km/h (");
+    printFieldAge(gps.speed.isValid(), gps.speed.age());
+    Serial.print(")\n");
+
+    receivedBytesSinceDiagnostic = 0;
+    lastDiagnosticAt = now;
+}
+} // namespace
+
 // INITIALISATION
 
 void initGPS()
 {
+    lastDiagnosticAt = millis();
+    receivedBytesSinceDiagnostic = 0;
+    receivedBytesTotal = 0;
+
     gpsSerial.begin(
         GPS_BAUD_RATE,
         SERIAL_8N1,
@@ -44,8 +125,14 @@ void updateGPS()
      */
     while (gpsSerial.available() > 0)
     {
-        gps.encode(gpsSerial.read());
+        const int received = gpsSerial.read();
+        if (received < 0) continue;
+        ++receivedBytesSinceDiagnostic;
+        ++receivedBytesTotal;
+        gps.encode(static_cast<char>(received));
     }
+
+    printGPSDiagnostics(millis());
 }
 
 // LECTURE

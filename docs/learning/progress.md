@@ -29,6 +29,9 @@ compréhension de l'utilisateur.
   les appels, les structures de mesure, les bancs et les guides qui en dépendent.
 - Modèle V3 : DC1/DC2/DC3/TV gardent leur identité dans le JSON et dans D3.
 - Insertion atomique : les deux SMS d'une fenêtre entrent ensemble dans la NVS.
+- Maillage STL fermé : les triangles doivent former un volume fermé pour que
+  le trancheur reconnaisse correctement les boîtiers XT90i ; l'ajustement reste
+  à vérifier avec les coupons imprimés.
 
 ## À revoir
 

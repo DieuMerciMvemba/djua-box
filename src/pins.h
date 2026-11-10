@@ -29,9 +29,9 @@
 #endif
 
 // ---------- INDICATION LOCALE DJUA ----------
-#define LED_SYSTEM_PIN 18
+#define LED_SYSTEM_PIN 23
 #define LED_COMM_PIN 19
-#define LED_ALERT_PIN 23
+#define LED_ALERT_PIN 18
 #define BUZZER_PIN 33
 
 // ---------- A7670 : UART1 RX32 / TX13 (niveaux de carte a verifier) ----------
