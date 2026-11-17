@@ -133,7 +133,8 @@ class D2FirmwareTests(unittest.TestCase):
                 args = ["encode", "D2T2", decoded["device_id"], decoded["sequence"],
                     decoded["rtc_epoch_s"] if decoded["rtc_epoch_s"] is not None else "-",
                     decoded["uptime_ms"], decoded["interval_seconds"], decoded["flags"],
-                    *["-" if value is None else repr(value) for value in values], vector["mode"]]
+                    *["-" if value is None else repr(value) for value in values],
+                    decoded["dc_load"]["measured_count"], vector["mode"]]
                 actual = self.run_cpp(*args)
                 self.assertEqual(actual, vector["sms"])
                 signed, tag = actual.rsplit(",", 1)
@@ -144,6 +145,7 @@ class D2FirmwareTests(unittest.TestCase):
                 raw = base64.urlsafe_b64decode(payload)
                 self.assertEqual(len(raw), 60)
                 self.assertEqual(raw, base64.urlsafe_b64decode(vector["sms"].split(",")[2]))
+                self.assertEqual((int.from_bytes(raw, "big") >> 3) & 7, decoded["dc_load"]["measured_count"])
                 self.assertEqual(self.run_cpp("pack", *args[1:]), raw.hex())
                 self.assertEqual(len(actual), vector["gsm7_septets"])
                 if tag != "-":
@@ -170,7 +172,8 @@ class D2FirmwareTests(unittest.TestCase):
             encoded = base64.urlsafe_b64encode(bits.to_bytes(60, "big")).decode()
             return f"{protocol},{device},{encoded},{tag}"
 
-        self.assertEqual(self.run_cpp("check", mutate(474, 6, 1), "development"), "D2T2_RESERVED_BITS")
+        self.assertEqual(self.run_cpp("check", mutate(477, 3, 1), "development"), "D2T2_RESERVED_BITS")
+        self.assertEqual(self.run_cpp("check", mutate(474, 3, 7), "development"), "OUT_OF_RANGE")
         for start, width, value in ((0, 32, 0), (96, 17, 9), (164, 15, 32001),
                                     (396, 18, 100001), (414, 18, 100001),
                                     (432, 26, 24000001), (113, 25, 9000001)):

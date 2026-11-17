@@ -36,6 +36,9 @@ La file compte 16 places, dont 4 périodiques ; une paire D3 consomme deux place
 
 ## Provisionnement local
 
+Pour la mise en service complète de la SIM, des numéros, du modem A7670 et de
+la box, consulter le [guide de mise en service A7670](GUIDE_A7670.md).
+
 Un appareil vierge reste `D2_UNPROVISIONED`, sans création ni envoi automatique.
 `D2_PROVISIONING_ENABLED=0` par défaut. La console temporaire expose :
 

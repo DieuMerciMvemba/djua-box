@@ -43,7 +43,10 @@ try:
             command = ["encode", d["protocol"], d["device_id"], d["sequence"],
                 d["rtc_epoch_s"] if d["rtc_epoch_s"] is not None else "-", d["uptime_ms"],
                 d.get("interval_seconds", d.get("event_code")), d["flags"],
-                *["-" if v is None else repr(v) for v in values], vector["mode"]]
+                *["-" if v is None else repr(v) for v in values]]
+            if packed:
+                command.append(d["dc_load"]["measured_count"])
+            command.append(vector["mode"])
             actual = test.run_cpp(*command)
             assert actual == vector["sms"]
             parse, verify, normalize = (parse_d2t2, verify_d2t2_security, normalize_d2t2_to_backend) if packed else (

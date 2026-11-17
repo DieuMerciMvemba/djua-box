@@ -3,6 +3,7 @@
 #include "../../src/communication/gsm.h"
 #include "../../src/communication/sms_scheduler.h"
 #include "../../src/telemetry/energy_window.h"
+#include "../../src/telemetry/telemetry.h"
 #include "../../src/communication/gsm_startup.h"
 #include "host_crypto.h"
 #include <cassert>
@@ -121,6 +122,7 @@ static void codecEdgeTests() {
 }
 static void d2t2EdgeTests() {
     D2Frame frame; strcpy(frame.device, "A"); frame.sequence = 1; frame.interval = 10;
+    frame.dcMeasuredCount = 2;
     frame.flags = 384;
     frame.values[DcV] = {0, true}; frame.values[DcI] = {-0.0005, true};
     frame.values[DcP] = {-0.05, true}; frame.values[DcE] = {-0.005, true};
@@ -140,6 +142,20 @@ static void d2t2EdgeTests() {
     frame.flags = 256; assert(encodeD2T2(frame, testKey, true, hostHmac, text) == D2Error::FlagDependency);
     frame.flags = 512; assert(encodeD2T2(frame, testKey, true, hostHmac, text) == D2Error::InvalidFlags);
 
+    frame.flags = 384; frame.dcMeasuredCount = 5;
+    assert(encodeD2T2(frame, testKey, true, hostHmac, text) == D2Error::OutOfRange);
+    frame.dcMeasuredCount = 0;
+    assert(encodeD2T2(frame, testKey, true, hostHmac, text) == D2Error::FlagValueMismatch);
+
+    // Older persisted D2T2 records left all six trailing bits at zero.
+    frame.dcMeasuredCount = 2; frame.dcMeasuredCountPresent = true;
+    frame.values[DcV].value = 0;
+    assert(encodeD2T2(frame, nullptr, false, hostHmac, text) == D2Error::Ok);
+    char* authComma = strrchr(text, ','); assert(authComma && authComma[-1] != 'A');
+    authComma[-1] = 'A';
+    assert(decodeD2T2(text, nullptr, false, hostHmac, decoded) == D2Error::Ok);
+    assert(!decoded.dcMeasuredCountPresent && decoded.values[DcV].present);
+
     // A legacy SMS already persisted keeps its exact bytes after upgrading.
     MemoryStore memory; D2Journal journal(memory, hostHmac); provision(journal);
     D2Frame legacy; strcpy(legacy.device, "TEST-001"); legacy.interval = 1800;
@@ -157,6 +173,83 @@ static void d2t2EdgeTests() {
     assert(upgraded.recordAttempt(1)); const std::string pending = upgraded.at(1)->text;
     D2Journal reboot(memory, hostHmac); reboot.begin();
     assert(reboot.state() == D2State::Ready && pending == reboot.at(1)->text && original == reboot.at(0)->text);
+}
+static ElectricalSlot validDc(double voltage, double current, double power) {
+    ElectricalSlot slot; slot.valid = true; slot.fault = MeasureFault::None;
+    slot.voltage = voltage; slot.current = current; slot.power = power; return slot;
+}
+static void dcAggregationTests() {
+    ElectricalSlot ports[4] = {
+        validDc(10, 1, 10), validDc(12, 2, 24), validDc(14, 3, 42), validDc(16, 4, 64)
+    };
+    auto average = aggregateDcLoad(ports);
+    assert(average.measuredCount == 4 && average.electric.valid);
+    assert(average.electric.voltage == 13 && average.electric.current == 2.5 && average.electric.power == 35);
+
+    ports[1].valid = false; ports[1].fault = MeasureFault::Io;
+    ports[1].voltage = 120; ports[1].current = 200; ports[1].power = 24000;
+    average = aggregateDcLoad(ports);
+    assert(average.measuredCount == 3 && average.electric.voltage == 40.0 / 3.0);
+    assert(average.electric.current == 8.0 / 3.0 && average.electric.power == 116.0 / 3.0);
+
+    ports[0].valid = false; ports[1].valid = true; ports[1].fault = MeasureFault::None;
+    ports[2].valid = false; ports[3].valid = false;
+    average = aggregateDcLoad(ports);
+    assert(average.measuredCount == 1 && average.electric.valid);
+    assert(average.electric.voltage == 120 && average.electric.current == 200 && average.electric.power == 24000);
+
+    ports[1] = validDc(12, 0, 0); ports[0] = {}; ports[2] = {}; ports[3] = {};
+    average = aggregateDcLoad(ports);
+    assert(average.measuredCount == 1 && average.electric.valid && average.electric.current == 0);
+
+    ports[1].valid = false; ports[1].fault = MeasureFault::Disabled;
+    average = aggregateDcLoad(ports);
+    assert(average.measuredCount == 0 && !average.electric.valid);
+    assert(average.electric.voltage == 0 && average.electric.current == 0 && average.electric.power == 0);
+
+    ports[0] = validDc(12, 1, 12); ports[0].energyWh = 1.0; ports[0].energyComplete = true;
+    ports[1] = validDc(12, 0.5, 6); ports[1].energyWh = 0.5; ports[1].energyComplete = true;
+    average = aggregateDcLoad(ports);
+    assert(average.measuredCount == 2 && average.electric.energyComplete && average.electric.energyWh == 1.5);
+    TelemetryV3 telemetry; for (size_t i = 0; i < 4; ++i) telemetry.dc[i] = ports[i];
+    D2Frame frame = buildD2TelemetryFrame(telemetry);
+    assert((frame.flags & (1U << 7)) && (frame.flags & (1U << 8)));
+    assert(frame.values[DcE].present && frame.values[DcE].value == 1.5);
+
+    ports[1] = {}; ports[2] = {}; ports[3] = {};
+    ports[0].energyComplete = false;
+    average = aggregateDcLoad(ports);
+    assert(average.measuredCount == 1 && !average.electric.energyComplete && average.electric.energyWh == 0);
+    telemetry = {}; for (size_t i = 0; i < 4; ++i) telemetry.dc[i] = ports[i];
+    frame = buildD2TelemetryFrame(telemetry);
+    assert((frame.flags & (1U << 7)) && !(frame.flags & (1U << 8)));
+    assert(!frame.values[DcE].present);
+
+    telemetry = {};
+    frame = buildD2TelemetryFrame(telemetry);
+    assert(!(frame.flags & (1U << 7)) && !(frame.flags & (1U << 8)));
+    assert(!frame.values[DcE].present);
+}
+static void singleSmsD2T2Tests() {
+    TelemetryV3 input; input.uptime = 1234; input.interval = 30;
+    input.battery = validDc(12.5, 1, 12.5);
+    input.dc[0] = validDc(12, 2, 24); input.dc[1] = validDc(12.4, 0, 0);
+    input.dc[2].fault = MeasureFault::Io; input.dc[2].voltage = 900;
+    const D2Frame frame = buildD2TelemetryFrame(input);
+    assert(frame.dcMeasuredCount == 2 && (frame.flags & (1U << 7)));
+    assert(frame.values[DcV].value == 12.2 && frame.values[DcI].value == 1 && frame.values[DcP].value == 12);
+
+    MemoryStore memory; D2Journal journal(memory, hostHmac); provision(journal);
+    D2Error error; assert(journal.enqueue(frame, error) == EnqueueResult::Stored);
+    assert(journal.count() == 1 && journal.at(0)->sequence == 1);
+    assert(!strncmp(journal.at(0)->text, "D2T2,TEST-001,", 14));
+    size_t septets = 0; assert(countD2Septets(journal.at(0)->text, septets) == D2Error::Ok && septets <= 160);
+    D2Frame decoded; assert(decodeD2T2(journal.at(0)->text, testKey, true, hostHmac, decoded) == D2Error::Ok);
+    assert(decoded.dcMeasuredCountPresent && decoded.dcMeasuredCount == 2);
+    assert(decoded.values[DcV].value == 12.2 && decoded.values[DcI].value == 1 && decoded.values[DcP].value == 12);
+    char tampered[D2_SMS_CAPACITY]; strcpy(tampered, journal.at(0)->text);
+    tampered[strlen(tampered) - 1] = tampered[strlen(tampered) - 1] == 'A' ? 'B' : 'A';
+    assert(decodeD2T2(tampered, testKey, true, hostHmac, decoded) == D2Error::AuthInvalid);
 }
 static void startupTests() {
     GsmStartup start; start.begin(true, UINT32_MAX - 500);
@@ -315,7 +408,7 @@ int main(int argc, char** argv) {
         D2Frame frame; std::cout << d2ErrorName(decodeD2(argv[2], testKey, std::string(argv[3]) == "production", hostHmac, frame));
         return 0;
     }
-    if ((argc == 25 || argc == 29) && (std::string(argv[1]) == "encode" || std::string(argv[1]) == "pack")) {
+    if ((argc == 25 || argc == 29 || argc == 30) && (std::string(argv[1]) == "encode" || std::string(argv[1]) == "pack")) {
         D2Frame frame; frame.event = std::string(argv[2]) == "D2E";
         if (strlen(argv[3]) > 32) return 2; strcpy(frame.device, argv[3]);
         frame.sequence = static_cast<uint32_t>(strtoull(argv[4], nullptr, 10));
@@ -324,9 +417,10 @@ int main(int argc, char** argv) {
         if (frame.event) frame.exit = std::string(argv[7]) == "GX";
         else frame.interval = static_cast<uint32_t>(strtoul(argv[7], nullptr, 10));
         frame.flags = static_cast<uint16_t>(strtoul(argv[8], nullptr, 10));
-        const size_t n = argc == 29 ? FieldCount : D2_LEGACY_FIELD_COUNT;
+        const size_t n = (argc == 29 || argc == 30) ? FieldCount : D2_LEGACY_FIELD_COUNT;
         for (size_t i = 0; i < n; ++i)
             if (std::string(argv[9 + i]) != "-") frame.values[i] = {strtod(argv[9 + i], nullptr), true};
+        if (argc == 30) frame.dcMeasuredCount = static_cast<uint8_t>(strtoul(argv[28], nullptr, 10));
         const bool production = std::string(argv[argc - 1]) != "development";
         const auto encoder = std::string(argv[2]) == "D2T2" ? encodeD2T2 : encodeD2;
         if (std::string(argv[1]) == "pack") {
@@ -340,6 +434,7 @@ int main(int argc, char** argv) {
         if (error != D2Error::Ok) { std::cout << d2ErrorName(error); return 1; }
         std::cout << text; return 0;
     }
-    energyTests(); codecEdgeTests(); d2t2EdgeTests(); startupTests(); journalTests(); queueTests(); modemTests(); schedulerTests();
-    std::cout << "8 groupes C++ PASS : D2/UTC, D2T2/migration, energie, compteur, file, modem, scheduler, PWRKEY\n";
+    energyTests(); codecEdgeTests(); d2t2EdgeTests(); dcAggregationTests(); singleSmsD2T2Tests();
+    startupTests(); journalTests(); queueTests(); modemTests(); schedulerTests();
+    std::cout << "10 groupes C++ PASS : D2/UTC, D2T2/HMAC, aggregation DC, energie, compteur, file, modem, scheduler, PWRKEY\n";
 }

@@ -1,8 +1,9 @@
-# Format D2T2 des SMS persistés
+# Format D2T2 des SMS périodiques
 
-Le firmware de production crée désormais des paires [D3T](SMS_D3.md).
-D2T2 reste disponible pour relire les textes signés en NVS et pour les
-vecteurs de conformité. Il ne sélectionne aucun pilote de capteur.
+Le firmware utilise D2T2 pour envoyer toute la télémétrie périodique dans un
+seul SMS. Les textes D3T déjà présents dans la file NVS restent lisibles et
+retransmis sans modification ; aucune nouvelle fenêtre périodique D3T n'est
+créée.
 
 ## Trame
 
@@ -10,13 +11,14 @@ vecteurs de conformité. Il ne sélectionne aucun pilote de capteur.
 D2T2,DEV,PAYLOAD,AUTH
 ```
 
-PAYLOAD contient 60 octets, 480 bits MSB d'abord, encodés en 80 caractères
-Base64URL sans padding. AUTH est une signature HMAC-SHA256 tronquée à 8 octets,
-encodée en 11 caractères. Les octets ASCII exacts `D2T2,DEV,PAYLOAD` sont signés.
-Une identité de 32 caractères produit au maximum 130 septets GSM-7.
+PAYLOAD contient 60 octets, soit 480 bits MSB d'abord, encodés en 80 caractères
+Base64URL sans padding. AUTH contient les 8 premiers octets du HMAC-SHA256,
+encodés en 11 caractères Base64URL. Le HMAC signe les octets ASCII exacts
+`D2T2,DEV,PAYLOAD`. Avec un identifiant d'appareil de 32 caractères, la trame
+fait au plus 130 septets GSM-7 ; elle tient dans un SMS de 160 septets.
 
-Le codec refuse les valeurs hors plage, bits réservés non nuls, absences
-non canoniques et dépendances de flags incorrectes.
+Le codec refuse les valeurs hors plage, les bits réservés non nuls, les absences
+non canoniques et les dépendances de flags incorrectes.
 
 ## Groupes de présence
 
@@ -32,23 +34,36 @@ non canoniques et dépendances de flags incorrectes.
 | 7 | Groupe DC V/I/P |
 | 8 | Énergie DC, exige bit 7 |
 
-Les bits 9..15 du champ flags et les six bits finaux du payload restent zéro.
-Un champ absent occupe zéro avec son flag éteint. Un zéro réel conserve son flag.
-Le groupe DC de ce contrat ne représente pas les quatre identités DC1/DC2/DC3/TV :
-celles-ci sont transportées par D3.
+Les bits 9..15 du champ flags restent nuls. Après les flags, les trois premiers
+bits finaux encodent `measured_count` (0..4) ; les trois derniers sont réservés
+et doivent rester nuls. `measured_count` est supérieur à zéro exactement quand
+le groupe DC V/I/P est présent. Un courant mesuré à zéro conserve donc le groupe
+DC et compte comme une mesure.
+
+Le groupe DC contient la moyenne arithmétique de la tension, du courant et de la
+puissance des canaux valides parmi DC1, DC2, DC3 et TV. `measured_count` indique
+le nombre de canaux inclus ; aucune mesure individuelle n'est transmise. Les
+pilotes INA3221 et INA228 lisent tous la tension de bus côté charge : la moyenne
+est celle des tensions mesurées aux bornes des canaux, pas une estimation d'un
+bus électrique commun.
+
+Les anciennes trames D2T2 avaient leurs six bits finaux à zéro. Elles restent
+décodables. Si le groupe DC est présent sans compteur, le décodeur expose le
+compteur comme inconnu au lieu d'inventer une valeur.
+
+Un champ absent occupe zéro avec son flag éteint ; un zéro réellement mesuré
+conserve son flag.
 
 ## Référence et reprise
 
 Implémentation : `src/communication/d2t2_codec.cpp`.
-Fixtures indépendantes :
-[tests/sms/d2t2_conformance.json](../tests/sms/d2t2_conformance.json).
-Vérification : `python tests/sms/run_tests.py` et
-`python tests/refonte/run_tests.py`.
+Fixtures : [tests/sms/d2t2_conformance.json](../tests/sms/d2t2_conformance.json).
+Vérification : `python tests/sms/run_tests.py`.
 
 Le journal [SMS_D2.md](SMS_D2.md) conserve les textes signés sans les convertir
-vers un autre format. Le compteur et la politique de retry restent communs
-aux événements et aux messages périodiques.
+vers un autre format. Le compteur de séquence et les retries restent communs
+aux événements et aux SMS périodiques.
 
 Le [banc A7670/HMAC](../TEST%20UNITAIRE/SMS/README.md) peut envoyer manuellement
-un vecteur public synthétique. Ce banc teste le contrat et le transport ;
-il ne réalise aucune acquisition électrique.
+un vecteur public synthétique. Ce banc vérifie le contrat et le transport ; il
+ne réalise aucune acquisition électrique.

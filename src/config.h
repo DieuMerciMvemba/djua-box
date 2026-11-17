@@ -31,7 +31,7 @@ static_assert(D2_PERIOD_SECONDS >= 10UL && D2_PERIOD_SECONDS <= 86400UL,
 
 // A7670 sur UART1 ; alimentation et niveaux de la carte a confirmer.
 #ifndef GSM_HARDWARE_CONFIGURED
-#define GSM_HARDWARE_CONFIGURED 0
+#define GSM_HARDWARE_CONFIGURED 1
 #endif
 #ifndef GSM_BAUD_RATE
 #define GSM_BAUD_RATE 115200UL
@@ -95,7 +95,7 @@ static_assert(BATTERY_CURRENT_POLARITY == 1 || BATTERY_CURRENT_POLARITY == -1,
 #define PZEM_HARDWARE_CONFIGURED 1
 #endif
 #ifndef D3_RECEIVER_ENABLED
-#define D3_RECEIVER_ENABLED 0
+#define D3_RECEIVER_ENABLED 1
 #endif
 #ifndef V2_BATTERY_ADDRESS
 #define V2_BATTERY_ADDRESS 0x44

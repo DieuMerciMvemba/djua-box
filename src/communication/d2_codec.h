@@ -17,6 +17,8 @@ struct D2Value { double value = 0; bool present = false; };
 struct D2Frame {
     bool event = false;
     bool exit = true;
+    uint8_t dcMeasuredCount = 0;
+    bool dcMeasuredCountPresent = true;
     char device[33] = {};
     uint32_t sequence = 0, rtc = 0, uptime = 0, interval = 0;
     uint16_t flags = 0;
@@ -32,9 +34,8 @@ D2Error encodeD2(const D2Frame& frame, const uint8_t* key, bool requireAuth,
                  D2Hmac hmac, char output[D2_SMS_CAPACITY]);
 D2Error decodeD2(const char* sms, const uint8_t* key, bool requireAuth,
                  D2Hmac hmac, D2Frame& frame);
-// D2T is retained only for conformance and reading immutable legacy NVS entries.
-// D2T2 remains available for conformance and persisted entries.
-// Production telemetry uses D3; geofence events keep D2E.
+// D2T is retained for immutable legacy NVS entries; periodic production uses D2T2.
+// D3 decoding remains for already-persisted entries; geofence events keep D2E.
 constexpr size_t D2T2_PAYLOAD_BYTES = 60;
 D2Error packD2T2(const D2Frame& frame, uint8_t output[D2T2_PAYLOAD_BYTES]);
 D2Error encodeD2T2(const D2Frame& frame, const uint8_t* key, bool requireAuth,

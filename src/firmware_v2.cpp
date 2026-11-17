@@ -150,8 +150,7 @@ void sampleWindow(uint32_t now) {
         frame.ac.counterValid = ac.counterValid; if (ac.counterValid) frame.ac.counterWh = ac.counterWh;
     }
 #if DJUA_COMM_PROFILE == DJUA_PROFILE_SMS_PRODUCTION
-    if (D3_RECEIVER_ENABLED) enqueueSMSV3(frame);
-    else Serial.println("[D3] Mesures locales disponibles ; emission D3 desactivee jusqu'a adaptation du recepteur");
+    enqueueSMS(buildD2TelemetryFrame(frame));
 #else
     const TelemetryData data = buildV3Telemetry(frame, clock);
 #if DJUA_COMM_PROFILE == DJUA_PROFILE_MQTT_TEST

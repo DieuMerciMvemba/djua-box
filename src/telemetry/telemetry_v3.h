@@ -27,6 +27,40 @@ struct TelemetryV3 {
     AcSlot ac;
     ElectricalSlot dc[4]; // fixed identities DC1, DC2, DC3, TV, never USB
 };
+struct DcLoadAggregate {
+    ElectricalSlot electric;
+    uint8_t measuredCount = 0;
+};
+inline DcLoadAggregate aggregateDcLoad(const ElectricalSlot (&channels)[4]) {
+    DcLoadAggregate result;
+    double voltage = 0, current = 0, power = 0;
+    double energyWh = 0;
+    bool energyComplete = true;
+    for (const auto& channel : channels) {
+        if (!channel.valid || channel.fault != MeasureFault::None ||
+            !isfinite(channel.voltage) || !isfinite(channel.current) || !isfinite(channel.power))
+            continue;
+        voltage += channel.voltage;
+        current += channel.current;
+        power += channel.power;
+        energyWh += channel.energyWh;
+        energyComplete = energyComplete && channel.energyComplete;
+        ++result.measuredCount;
+    }
+    if (result.measuredCount) {
+        const double count = result.measuredCount;
+        result.electric.voltage = voltage / count;
+        result.electric.current = current / count;
+        result.electric.power = power / count;
+        result.electric.valid = true;
+        result.electric.fault = MeasureFault::None;
+        if (energyComplete) {
+            result.electric.energyWh = energyWh;
+            result.electric.energyComplete = true;
+        }
+    }
+    return result;
+}
 inline uint16_t boundedAge(uint32_t age) { return static_cast<uint16_t>(age > 65535 ? 65535 : age); }
 inline ElectricalSlot makeSlot(const ElectricalReading& r, uint32_t now, double wh, bool complete) {
     ElectricalSlot slot; slot.fault = r.fault; slot.ageMs = boundedAge(now - r.sampledAt);

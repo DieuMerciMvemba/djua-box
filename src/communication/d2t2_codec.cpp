@@ -54,6 +54,9 @@ D2Error validate(const D2Frame& f) {
         return D2Error::FlagValueMismatch;
     if (((f.flags & 32) && !(f.flags & 8)) || ((f.flags & 64) && !(f.flags & 16)) ||
         ((f.flags & 256) && !(f.flags & 128))) return D2Error::FlagDependency;
+    if (f.dcMeasuredCountPresent && (f.dcMeasuredCount > 4 ||
+        ((f.dcMeasuredCount > 0) != ((f.flags & (1U << 7)) != 0))))
+        return f.dcMeasuredCount > 4 ? D2Error::OutOfRange : D2Error::FlagValueMismatch;
     for (const auto& s : specs) {
         const auto& v = f.values[s.field];
         if (v.present != ((f.flags & (1U << s.flag)) != 0)) return D2Error::FlagValueMismatch;
@@ -65,6 +68,7 @@ D2Error validate(const D2Frame& f) {
 }
 D2Error packD2T2(const D2Frame& frame, uint8_t output[D2T2_PAYLOAD_BYTES]) {
     memset(output, 0, D2T2_PAYLOAD_BYTES);
+    if (!frame.dcMeasuredCountPresent) return D2Error::FlagValueMismatch;
     const auto error = validate(frame);
     if (error != D2Error::Ok) return error;
     size_t bit = 0;
@@ -78,7 +82,8 @@ D2Error packD2T2(const D2Frame& frame, uint8_t output[D2T2_PAYLOAD_BYTES]) {
         }
         writeBits(output, bit, static_cast<uint32_t>(raw), s.width);
     }
-    writeBits(output, bit, frame.flags, 16); writeBits(output, bit, 0, 6);
+    writeBits(output, bit, frame.flags, 16);
+    writeBits(output, bit, frame.dcMeasuredCount, 3); writeBits(output, bit, 0, 3);
     return bit == 480 ? D2Error::Ok : D2Error::InvalidFields;
 }
 D2Error encodeD2T2(const D2Frame& frame, const uint8_t* key, bool requireAuth,
@@ -136,7 +141,13 @@ D2Error decodeD2T2(const char* sms, const uint8_t* key, bool requireAuth,
             : static_cast<int32_t>(encoded);
     }
     frame.flags = static_cast<uint16_t>(readBits(raw, bit, 16));
-    if (readBits(raw, bit, 6)) return D2Error::ReservedBits;
+    frame.dcMeasuredCount = static_cast<uint8_t>(readBits(raw, bit, 3));
+    if (frame.dcMeasuredCount > 4) return D2Error::OutOfRange;
+    if (readBits(raw, bit, 3)) return D2Error::ReservedBits;
+    // Six zero tail bits plus a present DC group identify a pre-count D2T2
+    // record already persisted in NVS. Preserve it without inventing a count.
+    if (!frame.dcMeasuredCount && (frame.flags & (1U << 7)))
+        frame.dcMeasuredCountPresent = false;
     if (!(frame.flags & 1) && frame.rtc) return D2Error::NonCanonicalAbsent;
     i = 0;
     for (const auto& s : specs) {
