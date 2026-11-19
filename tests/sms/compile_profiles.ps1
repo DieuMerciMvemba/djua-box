@@ -7,7 +7,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $projectPath = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $buildFixtureRoot = Join-Path $env:TEMP ('djua-profiles-' + [Guid]::NewGuid().ToString('N'))
-$originalConfig = [IO.File]::ReadAllText((Join-Path $projectPath 'src\config.h'))
+$originalConfig = [IO.File]::ReadAllText((Join-Path $projectPath 'iot_box\src\config.h'))
 $profiles = @(
     @{ Name = 'SMS_PRODUCTION'; Profile = 1; Defines = '' },
     @{ Name = 'MQTT_TEST'; Profile = 2; Defines = '' },
@@ -28,7 +28,7 @@ foreach ($profile in $profiles) {
     # Copies de compilation temporaires : le depot utilisateur reste inchange.
     # Les defines vont dans le config.h copie, commun au .ino et a TOUS les .cpp.
     # Cela reutilise le cache du coeur Arduino au lieu de le reconstruire 4 fois.
-    Copy-Item -LiteralPath (Join-Path $projectPath 'src\pins.h') -Destination (Join-Path $fixturePath 'src\pins.h') -Force
+    Copy-Item -LiteralPath (Join-Path $projectPath 'iot_box\src\pins.h') -Destination (Join-Path $fixturePath 'src\pins.h') -Force
     $config = $originalConfig.Replace('#define DJUA_COMM_PROFILE DJUA_PROFILE_SMS_PRODUCTION',
         "#define DJUA_COMM_PROFILE $($profile.Profile)")
     $config = $config.Replace('#define CONFIG_H', "#define CONFIG_H`n$($profile.Defines)")
