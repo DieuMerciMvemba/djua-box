@@ -2,7 +2,7 @@ param([string]$ArduinoCli = 'arduino-cli')
 $ErrorActionPreference = 'Stop'
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path.Replace('\', '/')
 $source = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'indicators_test/indicators_test.ino'))
-$source = $source.Replace('../../../src/', "$repo/src/")
+$source = $source.Replace('../../../iot_box/src/', "$repo/src/")
 $sketch = Join-Path $env:TEMP 'djua-indicators-variants/indicators_test'
 $null = New-Item -ItemType Directory -Force -Path $sketch
 foreach ($variant in @(@(0, 0), @(1, 0), @(1, 1))) {

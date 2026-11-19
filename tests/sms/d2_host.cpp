@@ -1,10 +1,10 @@
-#include "../../src/communication/d2_codec.h"
-#include "../../src/communication/d2_store.h"
-#include "../../src/communication/gsm.h"
-#include "../../src/communication/sms_scheduler.h"
-#include "../../src/telemetry/energy_window.h"
-#include "../../src/telemetry/telemetry.h"
-#include "../../src/communication/gsm_startup.h"
+#include "../../iot_box/src/communication/d2_codec.h"
+#include "../../iot_box/src/communication/d2_store.h"
+#include "../../iot_box/src/communication/gsm.h"
+#include "../../iot_box/src/communication/sms_scheduler.h"
+#include "../../iot_box/src/telemetry/energy_window.h"
+#include "../../iot_box/src/telemetry/telemetry.h"
+#include "../../iot_box/src/communication/gsm_startup.h"
 #include "host_crypto.h"
 #include <cassert>
 #include <cstdlib>

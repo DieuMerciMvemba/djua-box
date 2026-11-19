@@ -135,9 +135,26 @@ void updateProvisioning() {
     }
 }
 #endif
+void autoProvisionIfAbsent() {
+    if (journal.state() != djua::D2State::Unprovisioned) return;
+    const char* hex = D2_DEFAULT_HMAC_KEY_HEX;
+    if (!hex || strlen(hex) != 64) return;
+    uint8_t key[32] = {};
+    for (size_t i = 0; i < 64; ++i) {
+        const char c = hex[i];
+        const int digit = c >= '0' && c <= '9' ? c - '0' :
+            c >= 'a' && c <= 'f' ? c - 'a' + 10 : c >= 'A' && c <= 'F' ? c - 'A' + 10 : -1;
+        if (digit < 0) { memset(key, 0, sizeof(key)); return; }
+        key[i / 2] = static_cast<uint8_t>((key[i / 2] << 4) | digit);
+    }
+    const bool ok = journal.provision(DEVICE_ID, key, D2_DEFAULT_RECEIVER, "firmware-default", 1);
+    memset(key, 0, sizeof(key));
+    Serial.println(ok ? "[D2] Provisionnement auto NVS OK" : "[D2] Provisionnement auto NVS REFUSE");
+}
 }
 void initSMS() {
     store.begin(); journal.begin();
+    autoProvisionIfAbsent();
     Serial.printf("[D2] reference=%s | etat=%s\n", D2_REFERENCE_SHA, djua::d2StateName(journal.state()));
 #if GSM_HARDWARE_CONFIGURED
     io.uart.setRxBufferSize(512);

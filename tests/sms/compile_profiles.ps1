@@ -19,8 +19,8 @@ $profiles = @(
 try {
     $fixturePath = Join-Path $buildFixtureRoot 'iot_box'
     $null = New-Item -ItemType Directory -Path $fixturePath -Force
-    Copy-Item -LiteralPath (Join-Path $projectPath 'src') -Destination $fixturePath -Recurse
-    Copy-Item -LiteralPath (Join-Path $projectPath 'iot_box.ino') -Destination $fixturePath
+    Copy-Item -LiteralPath (Join-Path $projectPath 'iot_box\src') -Destination $fixturePath -Recurse
+    Copy-Item -LiteralPath (Join-Path $projectPath 'iot_box\iot_box.ino') -Destination $fixturePath
 foreach ($profile in $profiles) {
     if ($OnlyProfile.Count -gt 0 -and $profile.Name -notin $OnlyProfile) { continue }
     if ($SkipDefaultSMS -and $profile.Name -eq 'SMS_PRODUCTION') { continue }

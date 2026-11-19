@@ -57,6 +57,13 @@ static_assert(GSM_COMMAND_TIMEOUT_MS > 0 && GSM_SUBMIT_TIMEOUT_MS > 0 &&
 #ifndef D2_PROVISIONING_ENABLED
 #define D2_PROVISIONING_ENABLED 0
 #endif
+// Valeurs par defaut injectees une seule fois en NVS si le boitier est vierge (D2_UNPROVISIONED).
+#ifndef D2_DEFAULT_HMAC_KEY_HEX
+#define D2_DEFAULT_HMAC_KEY_HEX "ebe401b50ae09171a9fbc37231f79224efa195926ab90dc6dcc5e93a44f21f27"
+#endif
+#ifndef D2_DEFAULT_RECEIVER
+#define D2_DEFAULT_RECEIVER "+243852869410"
+#endif
 
 // Convention D2 : positif = charge, negatif = decharge. A verifier au banc.
 #ifndef BATTERY_CURRENT_POLARITY

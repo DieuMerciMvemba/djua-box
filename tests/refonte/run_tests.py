@@ -13,11 +13,11 @@ from run_tests import compiler_environment
 
 environment = compiler_environment()
 compiler = shutil.which("cl.exe", path=environment.get("PATH"))
-sources = [HERE / "drivers_test.cpp", ROOT / "src/drivers/ina228.cpp",
-           ROOT / "src/drivers/ina3221.cpp", ROOT / "src/drivers/pzem004t.cpp",
-           ROOT / "src/communication/gsm.cpp", ROOT / "src/communication/d2_codec.cpp",
-           ROOT / "src/communication/d2t2_codec.cpp", ROOT / "src/communication/d3_codec.cpp",
-           ROOT / "src/communication/d2_store.cpp", ROOT / "src/geofencing/geofence.cpp"]
+sources = [HERE / "drivers_test.cpp", ROOT / "iot_box/src/drivers/ina228.cpp",
+           ROOT / "iot_box/src/drivers/ina3221.cpp", ROOT / "iot_box/src/drivers/pzem004t.cpp",
+           ROOT / "iot_box/src/communication/gsm.cpp", ROOT / "iot_box/src/communication/d2_codec.cpp",
+           ROOT / "iot_box/src/communication/d2t2_codec.cpp", ROOT / "iot_box/src/communication/d3_codec.cpp",
+           ROOT / "iot_box/src/communication/d2_store.cpp", ROOT / "iot_box/src/geofencing/geofence.cpp"]
 with tempfile.TemporaryDirectory(prefix="iot-v2-host-") as directory:
     binary = Path(directory) / "drivers_test.exe"
     command = [compiler, "/nologo", "/std:c++17", "/EHsc", "/W4", "/WX", "/utf-8", "/D_CRT_SECURE_NO_WARNINGS", f"/I{HERE / 'support'}",

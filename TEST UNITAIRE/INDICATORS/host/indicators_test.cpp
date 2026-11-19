@@ -7,11 +7,11 @@
 #define V2_DC_CONFIGURED 1
 #define V2_TV_CONFIGURED 1
 #define PZEM_HARDWARE_CONFIGURED 1
-#include "../../../src/config.h"
-#include "../../../src/pins.h"
-#include "../../../src/indicators/indicators.cpp"
-#include "../../../src/status/device_status.cpp"
-#include "../../../src/geofencing/geofence.cpp"
+#include "../../../iot_box/src/config.h"
+#include "../../../iot_box/src/pins.h"
+#include "../../../iot_box/src/indicators/indicators.cpp"
+#include "../../../iot_box/src/status/device_status.cpp"
+#include "../../../iot_box/src/geofencing/geofence.cpp"
 
 static void tick(uint32_t now) {
     testNow = now;

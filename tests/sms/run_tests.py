@@ -45,7 +45,7 @@ class D2FirmwareTests(unittest.TestCase):
     def setUpClass(cls):
         cls.temporary = tempfile.TemporaryDirectory(prefix="djua-d2-host-")
         cls.binary = Path(cls.temporary.name) / "d2_host.exe"
-        sources = [HERE / "d2_host.cpp"] + [ROOT / "src/communication" / name
+        sources = [HERE / "d2_host.cpp"] + [ROOT / "iot_box/src/communication" / name
             for name in ("d2_codec.cpp", "d2t2_codec.cpp", "d3_codec.cpp", "d2_store.cpp", "gsm.cpp", "sms_scheduler.cpp")]
         environment = compiler_environment()
         compiler = shutil.which("cl.exe", path=environment.get("PATH"))

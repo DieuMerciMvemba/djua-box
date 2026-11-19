@@ -2,10 +2,10 @@
 
 // Pour le materiel reel, definir BUZZER_ENABLED=1 et choisir BUZZER_PASSIVE
 // et BUZZER_ACTIVE_HIGH dans config.h ou dans les options de compilation.
-#include "../../../src/config.h"
-#include "../../../src/pins.h"
-#include "../../../src/indicators/indicators.h"
-#include "../../../src/indicators/indicators.cpp"
+#include "../../../iot_box/src/config.h"
+#include "../../../iot_box/src/pins.h"
+#include "../../../iot_box/src/indicators/indicators.h"
+#include "../../../iot_box/src/indicators/indicators.cpp"
 
 namespace {
 struct TestStep { const char* name; uint32_t durationMs; };

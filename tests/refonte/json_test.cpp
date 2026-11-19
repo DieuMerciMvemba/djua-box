@@ -1,4 +1,4 @@
-#include "../../src/telemetry/json_v3.h"
+#include "../../iot_box/src/telemetry/json_v3.h"
 #include <cassert>
 #include <cstring>
 #include <cstdio>

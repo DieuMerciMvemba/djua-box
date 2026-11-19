@@ -2,8 +2,8 @@
 #include <Preferences.h>
 #include <mbedtls/md.h>
 #include <string.h>
-#include "../../../src/communication/d2_store.h"
-#include "../../../src/communication/gsm.h"
+#include "../../../iot_box/src/communication/d2_store.h"
+#include "../../../iot_box/src/communication/gsm.h"
 
 // Isolated GSM bench on final RX32/TX13; production GPS keeps GPIO 16/17.
 // No GPS, sensors, Wi-Fi, MQTT, HTTP or automatic SMS in this sketch.

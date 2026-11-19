@@ -1,6 +1,6 @@
 #include <Arduino.h>
-#include "../../../src/config.h"
-#include "../../../src/pins.h"
+#include "../../../iot_box/src/config.h"
+#include "../../../iot_box/src/pins.h"
 // Manual AT bench; no automatic SMS, provisioning, NVS erase or modem GNSS.
 static HardwareSerial modemUart(1);
 void setup() {

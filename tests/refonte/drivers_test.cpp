@@ -1,14 +1,14 @@
-#include "../../src/drivers/ina228.h"
-#include "../../src/drivers/ina3221.h"
-#include "../../src/drivers/pzem004t.h"
-#include "../../src/communication/gsm.h"
-#include "../../src/location/location.h"
-#include "../../src/communication/d2_store.h"
-#include "../../src/geofencing/geofence.h"
-#include "../../src/config.h"
+#include "../../iot_box/src/drivers/ina228.h"
+#include "../../iot_box/src/drivers/ina3221.h"
+#include "../../iot_box/src/drivers/pzem004t.h"
+#include "../../iot_box/src/communication/gsm.h"
+#include "../../iot_box/src/location/location.h"
+#include "../../iot_box/src/communication/d2_store.h"
+#include "../../iot_box/src/geofencing/geofence.h"
+#include "../../iot_box/src/config.h"
 #include "../sms/host_crypto.h"
 #undef near // Windows legacy calling-convention macro, used only by host BCrypt.
-#include "../../src/telemetry/energy_window.h"
+#include "../../iot_box/src/telemetry/energy_window.h"
 #include <cassert>
 #include <cstdio>
 #include <map>

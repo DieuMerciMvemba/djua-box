@@ -1,13 +1,13 @@
 #include <Arduino.h>
 #include <math.h>
 
-#include "../../../src/config.h"
-#include "../../../src/geofencing/geofence.h"
+#include "../../../iot_box/src/config.h"
+#include "../../../iot_box/src/geofencing/geofence.h"
 
 // Le sketch Arduino de test est autonome : il compile directement
 // les implementations de production GPS et geofencing.
-#include "../../../src/sensors/gps.cpp"
-#include "../../../src/geofencing/geofence.cpp"
+#include "../../../iot_box/src/sensors/gps.cpp"
+#include "../../../iot_box/src/geofencing/geofence.cpp"
 
 namespace
 {
