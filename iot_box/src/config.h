@@ -29,15 +29,15 @@
 static_assert(D2_PERIOD_SECONDS >= 10UL && D2_PERIOD_SECONDS <= 86400UL,
               "La periode D2 doit rester entre 10 et 86400 secondes");
 
-// A7670 sur UART1 ; alimentation et niveaux de la carte a confirmer.
+// SIM800C sur UART1 (9600 bauds, RX32 / TX13) ; alimentation 2A et masse commune requises.
 #ifndef GSM_HARDWARE_CONFIGURED
 #define GSM_HARDWARE_CONFIGURED 1
 #endif
 #ifndef GSM_BAUD_RATE
-#define GSM_BAUD_RATE 115200UL
+#define GSM_BAUD_RATE 9600UL
 #endif
 #ifndef GSM_MODULE_LABEL
-#define GSM_MODULE_LABEL "A7670"
+#define GSM_MODULE_LABEL "SIM800C"
 #endif
 // PWRKEY optionnel via transistor : niveau actif cote ESP32, pas cote module.
 #ifndef GSM_PWRKEY_ACTIVE_LEVEL

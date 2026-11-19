@@ -92,6 +92,14 @@ void GsmEngine::line(uint32_t now) {
     if (!strcmp(line_, "ERROR") || !strncmp(line_, "+CMS ERROR", 10) ||
         !strncmp(line_, "+CME ERROR", 10) || !strcmp(line_, "NORMAL POWER DOWN") ||
         (!strcmp(line_, "RDY"))) {
+        // Un module 2G (ex: SIM800C) ne supporte pas la commande LTE AT+CEREG? (etape 4) :
+        // on ignore l'erreur et on passe directement a AT+CREG? (etape 5).
+        if (state_ == GsmState::Initializing && step_ == 4) {
+            lteRegistered_ = false;
+            ++step_;
+            startCommand(now);
+            return;
+        }
         const char* colon = strchr(line_, ':');
         if (colon) { char* end = nullptr; long code = strtol(colon + 1, &end, 10);
             if (end != colon + 1 && code >= 0 && code <= 65535) errorCode_ = static_cast<int>(code); }

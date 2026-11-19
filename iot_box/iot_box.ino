@@ -344,7 +344,7 @@ void setup() {
     Serial.println("             DJUA IOT BOX V2 - ESP32             ");
     Serial.println("=================================================");
     Serial.printf("KIT ID : %s\n", DEVICE_ID);
-    Serial.println("[V2] INA3221 + 3 INA228 / PZEM UART logiciel / NEO-8M / A7670");
+    Serial.println("[V2] INA3221 + 3 INA228 / PZEM UART logiciel / NEO-8M / " GSM_MODULE_LABEL);
 
     // 1. Bus I2C avec timeout de securite (50 ms) contre tout blocage materiel
     Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
